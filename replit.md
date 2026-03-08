@@ -13,6 +13,11 @@ Website for Yayasan Cinta Dhuafa, a charity foundation focused on helping underp
 - **Program Amal** (`/programs`) - List of charity programs with donation dialog
 - **Detail Program** (`/programs/:id`) - Full program detail with description, donation sidebar, preset amounts, and donor list with prayers
 - **Artikel** (`/articles`) - Articles & news with detail view
+- **Tentang Kami** (dropdown menu with sub-pages):
+  - **Sejarah** (`/about/sejarah`) - Foundation history timeline
+  - **Visi & Misi** (`/about/visi-misi`) - Vision and mission statements
+  - **Struktur Organisasi** (`/about/struktur-organisasi`) - Organizational structure with member cards
+  - **Program** (`/about/program`) - Program areas overview (Pendidikan, Kesehatan, Ekonomi, Sosial)
 
 ## Key Files
 - `shared/schema.ts` - Database schema (programs, donations, articles)
@@ -20,6 +25,7 @@ Website for Yayasan Cinta Dhuafa, a charity foundation focused on helping underp
 - `server/routes.ts` - Express API routes + seed data
 - `server/storage.ts` - Database storage layer
 - `client/src/pages/` - React page components
+- `client/src/pages/about/` - About us sub-pages (Sejarah, VisiMisi, StrukturOrganisasi, ProgramKami)
 - `client/src/components/layout/` - Navbar, Footer
 - `client/src/components/programs/` - ProgramCard, DonationDialog
 - `client/src/hooks/` - Custom hooks for data fetching
