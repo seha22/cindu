@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertProgramSchema, programs, insertDonationSchema, donations } from './schema';
+import { insertProgramSchema, programs, insertDonationSchema, donations, insertArticleSchema, articles } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -56,6 +56,23 @@ export const api = {
       responses: {
         201: z.custom<typeof donations.$inferSelect>(),
         400: errorSchemas.validation,
+      },
+    },
+  },
+  articles: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/articles' as const,
+      responses: {
+        200: z.array(z.custom<typeof articles.$inferSelect>()),
+      },
+    },
+    get: {
+      method: 'GET' as const,
+      path: '/api/articles/:id' as const,
+      responses: {
+        200: z.custom<typeof articles.$inferSelect>(),
+        404: errorSchemas.notFound,
       },
     },
   },

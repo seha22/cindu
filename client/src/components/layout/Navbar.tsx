@@ -8,6 +8,7 @@ export default function Navbar() {
   const links = [
     { href: "/", label: "Beranda" },
     { href: "/programs", label: "Program Amal" },
+    { href: "/articles", label: "Artikel" },
   ];
 
   return (

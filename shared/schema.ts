@@ -27,3 +27,18 @@ export const donations = pgTable("donations", {
 export const insertDonationSchema = createInsertSchema(donations).omit({ id: true, createdAt: true });
 export type InsertDonation = z.infer<typeof insertDonationSchema>;
 export type Donation = typeof donations.$inferSelect;
+
+export const articles = pgTable("articles", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  excerpt: text("excerpt").notNull(),
+  content: text("content").notNull(),
+  imageUrl: text("image_url").notNull(),
+  author: text("author").notNull(),
+  category: text("category").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertArticleSchema = createInsertSchema(articles).omit({ id: true, createdAt: true });
+export type InsertArticle = z.infer<typeof insertArticleSchema>;
+export type Article = typeof articles.$inferSelect;

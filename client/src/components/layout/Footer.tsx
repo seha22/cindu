@@ -27,6 +27,9 @@ export default function Footer() {
               <li>
                 <Link href="/programs" className="text-primary-foreground/80 hover:text-accent transition-colors">Program Amal</Link>
               </li>
+              <li>
+                <Link href="/articles" className="text-primary-foreground/80 hover:text-accent transition-colors">Artikel</Link>
+              </li>
             </ul>
           </div>
 
