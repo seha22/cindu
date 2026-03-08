@@ -472,6 +472,88 @@ export async function registerRoutes(
     });
   });
 
+  app.get("/api/admin/users", requireAdmin, async (_req, res) => {
+    const allUsers = await storage.getUsersByRole("orang_tua_asuh");
+    const allDonations = await storage.getDonations();
+
+    const usersWithStats = allUsers.map(u => {
+      const userDonations = allDonations.filter(d => d.userId === u.id && d.paymentStatus === "settlement");
+      const { password: _, ...userWithoutPassword } = u;
+      return {
+        ...userWithoutPassword,
+        totalDonations: userDonations.reduce((sum, d) => sum + d.amount, 0),
+        donationCount: userDonations.length,
+      };
+    });
+
+    res.json(usersWithStats);
+  });
+
+  app.get("/api/admin/users/:id/donations", requireAdmin, async (req, res) => {
+    const userDonations = await storage.getDonationsByUser(Number(req.params.id));
+    res.json(userDonations);
+  });
+
+  app.get("/api/admin/reports", requireAdmin, async (_req, res) => {
+    const allPrograms = await storage.getPrograms();
+    const allDonations = await storage.getDonations();
+    const allUsers = await storage.getUsersByRole("orang_tua_asuh");
+
+    const settledDonations = allDonations.filter(d => d.paymentStatus === "settlement");
+
+    const programStats = allPrograms.map(p => {
+      const programDonations = settledDonations.filter(d => d.programId === p.id);
+      return {
+        id: p.id,
+        title: p.title,
+        targetAmount: p.targetAmount,
+        currentAmount: p.currentAmount,
+        donorCount: p.donorCount,
+        percentage: p.targetAmount > 0 ? Math.round((p.currentAmount / p.targetAmount) * 100) : 0,
+        totalFromDonations: programDonations.reduce((sum, d) => sum + d.amount, 0),
+      };
+    });
+
+    const monthlyMap = new Map<string, { amount: number; count: number }>();
+    settledDonations.forEach(d => {
+      if (!d.createdAt) return;
+      const date = new Date(d.createdAt);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      const existing = monthlyMap.get(key) || { amount: 0, count: 0 };
+      existing.amount += d.amount;
+      existing.count += 1;
+      monthlyMap.set(key, existing);
+    });
+    const monthlyStats = Array.from(monthlyMap.entries())
+      .map(([month, data]) => ({ month, ...data }))
+      .sort((a, b) => b.month.localeCompare(a.month));
+
+    const donorMap = new Map<string, { name: string; amount: number; count: number }>();
+    settledDonations.forEach(d => {
+      const key = d.donorName;
+      const existing = donorMap.get(key) || { name: key, amount: 0, count: 0 };
+      existing.amount += d.amount;
+      existing.count += 1;
+      donorMap.set(key, existing);
+    });
+    const topDonors = Array.from(donorMap.values())
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 10);
+
+    res.json({
+      overview: {
+        totalUsers: allUsers.length,
+        totalSettledDonations: settledDonations.length,
+        totalAmount: settledDonations.reduce((sum, d) => sum + d.amount, 0),
+        totalPrograms: allPrograms.length,
+        pendingDonations: allDonations.filter(d => d.paymentStatus === "pending").length,
+      },
+      programStats,
+      monthlyStats,
+      topDonors,
+    });
+  });
+
   seedDatabase().catch(console.error);
 
   return httpServer;

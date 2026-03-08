@@ -48,6 +48,8 @@ export interface IStorage {
   getCmsPage(slug: string): Promise<CmsPage | undefined>;
   getCmsPages(): Promise<CmsPage[]>;
   upsertCmsPage(page: InsertCmsPage): Promise<CmsPage>;
+
+  getUsersByRole(role: string): Promise<User[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -190,6 +192,10 @@ export class DatabaseStorage implements IStorage {
 
   async getCmsPages(): Promise<CmsPage[]> {
     return await db.select().from(cmsPages);
+  }
+
+  async getUsersByRole(role: string): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.role, role)).orderBy(desc(users.createdAt));
   }
 
   async upsertCmsPage(page: InsertCmsPage): Promise<CmsPage> {

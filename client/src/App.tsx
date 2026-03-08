@@ -20,6 +20,8 @@ import AdminPrograms from "@/pages/admin/AdminPrograms";
 import AdminArticles from "@/pages/admin/AdminArticles";
 import AdminDonations from "@/pages/admin/AdminDonations";
 import AdminCms from "@/pages/admin/AdminCms";
+import AdminUsers from "@/pages/admin/AdminUsers";
+import AdminReports from "@/pages/admin/AdminReports";
 import Dashboard from "@/pages/dashboard/Dashboard";
 import Profile from "@/pages/dashboard/Profile";
 import DonationHistory from "@/pages/dashboard/DonationHistory";
@@ -66,6 +68,8 @@ function Router() {
       <Route path="/admin/programs">{() => <AdminRoute component={AdminPrograms} />}</Route>
       <Route path="/admin/articles">{() => <AdminRoute component={AdminArticles} />}</Route>
       <Route path="/admin/donations">{() => <AdminRoute component={AdminDonations} />}</Route>
+      <Route path="/admin/users">{() => <AdminRoute component={AdminUsers} />}</Route>
+      <Route path="/admin/reports">{() => <AdminRoute component={AdminReports} />}</Route>
       <Route path="/admin/cms">{() => <AdminRoute component={AdminCms} />}</Route>
 
       <Route path="/dashboard">{() => <UserRoute component={Dashboard} />}</Route>

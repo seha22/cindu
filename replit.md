@@ -37,6 +37,8 @@ Website for Yayasan Cinta Dhuafa, a charity foundation focused on helping underp
 - **Programs** (`/admin/programs`) - CRUD management for donation programs
 - **Articles** (`/admin/articles`) - CRUD management for articles
 - **Donations** (`/admin/donations`) - View all donations with statuses
+- **Orang Tua Asuh** (`/admin/users`) - List foster parents with donation stats and detail view
+- **Laporan** (`/admin/reports`) - Reports & analytics (donation per program, monthly stats, top donors)
 - **CMS** (`/admin/cms`) - Edit CMS pages (sejarah, visi-misi, struktur-organisasi, program)
 
 ### Foster Parent Dashboard (`/dashboard/*`)
@@ -52,7 +54,7 @@ Website for Yayasan Cinta Dhuafa, a charity foundation focused on helping underp
 - `server/storage.ts` - Full database storage interface (IStorage) and DatabaseStorage implementation
 - `client/src/hooks/use-auth.tsx` - Auth context provider with login/register/logout/user state
 - `client/src/App.tsx` - All routes with protected route wrappers (AdminRoute, UserRoute, GuestRoute)
-- `client/src/pages/admin/` - Admin dashboard pages (AdminLayout, AdminDashboard, AdminPrograms, AdminArticles, AdminDonations, AdminCms)
+- `client/src/pages/admin/` - Admin dashboard pages (AdminLayout, AdminDashboard, AdminPrograms, AdminArticles, AdminDonations, AdminUsers, AdminReports, AdminCms)
 - `client/src/pages/dashboard/` - Foster parent dashboard pages (DashboardLayout, Dashboard, Profile, DonationHistory)
 - `client/src/pages/about/` - About us sub-pages (Sejarah, VisiMisi, StrukturOrganisasi, ProgramKami)
 - `client/src/components/layout/` - Navbar, Footer
@@ -98,6 +100,9 @@ Website for Yayasan Cinta Dhuafa, a charity foundation focused on helping underp
 
 ### Admin
 - `GET /api/admin/stats` - Dashboard statistics (admin)
+- `GET /api/admin/users` - List orang tua asuh users with donation stats (admin)
+- `GET /api/admin/users/:id/donations` - Get specific user's donation history (admin)
+- `GET /api/admin/reports` - Full reports data: program stats, monthly stats, top donors (admin)
 
 ### Midtrans
 - `POST /api/midtrans/notification` - Midtrans webhook handler
