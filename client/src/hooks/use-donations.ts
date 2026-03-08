@@ -41,9 +41,11 @@ export function useCreateDonation() {
       }
       return api.donations.create.responses[201].parse(await res.json());
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: [api.donations.list.path] });
-      queryClient.invalidateQueries({ queryKey: [api.programs.list.path] }); // Programs update their currentAmount
+      queryClient.invalidateQueries({ queryKey: [api.programs.list.path] });
+      queryClient.invalidateQueries({ queryKey: ["/api/programs"] });
+      queryClient.invalidateQueries({ queryKey: [api.programs.get.path, variables.programId] });
     },
   });
 }

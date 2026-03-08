@@ -6,9 +6,11 @@ export const programs = pgTable("programs", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description").notNull(),
+  content: text("content"),
   targetAmount: integer("target_amount").notNull(),
   currentAmount: integer("current_amount").notNull().default(0),
   imageUrl: text("image_url").notNull(),
+  donorCount: integer("donor_count").notNull().default(0),
 });
 
 export const insertProgramSchema = createInsertSchema(programs).omit({ id: true });

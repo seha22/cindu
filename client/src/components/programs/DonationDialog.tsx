@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,17 +13,24 @@ interface DonationDialogProps {
   program: Program | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  presetAmount?: number | null;
 }
 
 const PREDEFINED_AMOUNTS = [50000, 100000, 250000, 500000];
 
-export default function DonationDialog({ program, open, onOpenChange }: DonationDialogProps) {
+export default function DonationDialog({ program, open, onOpenChange, presetAmount }: DonationDialogProps) {
   const { toast } = useToast();
   const createDonation = useCreateDonation();
   
-  const [amount, setAmount] = useState<number | "">("");
+  const [amount, setAmount] = useState<number | "">(presetAmount || "");
   const [donorName, setDonorName] = useState("");
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    if (open && presetAmount) {
+      setAmount(presetAmount);
+    }
+  }, [open, presetAmount]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value);

@@ -59,6 +59,15 @@ export const api = {
       },
     },
   },
+  programDonations: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/programs/:id/donations' as const,
+      responses: {
+        200: z.array(z.custom<typeof donations.$inferSelect>()),
+      },
+    },
+  },
   articles: {
     list: {
       method: 'GET' as const,

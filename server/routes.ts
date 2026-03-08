@@ -43,29 +43,47 @@ async function seedDatabase() {
 
   const existingPrograms = await storage.getPrograms();
   if (existingPrograms.length === 0) {
-    await storage.createProgram({
+    const p1 = await storage.createProgram({
       title: "Bantuan Pangan Dhuafa",
       description: "Program penyaluran paket sembako untuk keluarga dhuafa di pelosok desa yang kesulitan memenuhi kebutuhan pokok sehari-hari.",
+      content: "Program Bantuan Pangan Dhuafa merupakan program unggulan Yayasan Cinta Dhuafa yang bertujuan untuk membantu keluarga-keluarga dhuafa yang kesulitan memenuhi kebutuhan pangan sehari-hari.\n\nSetiap paket sembako yang disalurkan berisi:\n- Beras 10 kg\n- Minyak goreng 2 liter\n- Gula pasir 2 kg\n- Teh dan kopi\n- Mie instan\n- Susu untuk anak-anak\n\nPenyaluran dilakukan setiap bulan secara rutin ke daerah-daerah yang telah disurvei oleh tim lapangan kami. Kami memastikan setiap bantuan tepat sasaran dan sampai ke tangan yang berhak menerimanya.\n\nDengan berdonasi di program ini, Anda turut membantu meringankan beban keluarga dhuafa dan memastikan mereka tidak kelaparan. Semoga setiap butir nasi yang tersaji menjadi saksi kebaikan Anda.",
       targetAmount: 50000000,
       currentAmount: 12500000,
+      donorCount: 156,
       imageUrl: "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?q=80&w=2070&auto=format&fit=crop",
     });
     
-    await storage.createProgram({
+    const p2 = await storage.createProgram({
       title: "Beasiswa Anak Yatim",
       description: "Memberikan beasiswa pendidikan penuh bagi anak yatim berprestasi untuk memastikan mereka dapat terus bersekolah hingga ke perguruan tinggi.",
+      content: "Program Beasiswa Anak Yatim adalah bentuk kepedulian kami terhadap masa depan anak-anak yatim di Indonesia. Kami percaya bahwa pendidikan adalah kunci untuk memutus rantai kemiskinan.\n\nCakupan beasiswa meliputi:\n- Biaya pendidikan (SPP) penuh\n- Buku dan alat tulis\n- Seragam sekolah\n- Biaya transportasi\n- Bimbingan belajar\n- Pembinaan karakter dan mental\n\nPenerima beasiswa dipilih berdasarkan:\n- Status yatim/piatu/dhuafa\n- Prestasi akademik\n- Motivasi belajar yang tinggi\n- Rekomendasi dari sekolah/pesantren\n\nSelain bantuan finansial, kami juga memberikan pendampingan berupa mentoring dan pembinaan karakter secara berkala. Tujuannya agar anak-anak yatim tidak hanya cerdas secara akademik, tetapi juga memiliki akhlak yang baik dan siap berkontribusi untuk masyarakat.",
       targetAmount: 100000000,
       currentAmount: 45000000,
+      donorCount: 289,
       imageUrl: "https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=2132&auto=format&fit=crop",
     });
 
-    await storage.createProgram({
+    const p3 = await storage.createProgram({
       title: "Pembangunan Sumur Air Bersih",
       description: "Membangun fasilitas sumur dan MCK untuk warga di daerah kekeringan yang kesulitan mengakses air bersih.",
+      content: "Program Pembangunan Sumur Air Bersih hadir untuk menjawab kebutuhan mendasar masyarakat di daerah-daerah yang mengalami krisis air bersih. Air bersih adalah hak setiap manusia, namun masih banyak saudara kita yang harus berjalan berkilo-kilo meter hanya untuk mendapatkan air.\n\nTarget pembangunan:\n- Sumur bor kedalaman 50-100 meter\n- Fasilitas MCK (Mandi, Cuci, Kakus)\n- Instalasi pipa distribusi air\n- Tandon penampungan air\n\nLokasi prioritas:\n- Daerah kekeringan di NTT dan NTB\n- Wilayah pedalaman Kalimantan\n- Desa-desa terpencil di Sulawesi\n- Kawasan perbukitan Jawa Timur\n\nSetiap sumur yang terbangun dapat melayani 50-100 kepala keluarga. Dengan berdonasi di program ini, Anda memberikan akses air bersih yang menjadi sumber kehidupan bagi mereka.",
       targetAmount: 75000000,
       currentAmount: 32000000,
+      donorCount: 203,
       imageUrl: "https://images.unsplash.com/photo-1541888046830-5896a2c206d2?q=80&w=2070&auto=format&fit=crop",
     });
+
+    await storage.createDonation({ programId: p1.id, donorName: "Ahmad Fadillah", amount: 500000, message: "Semoga bermanfaat untuk saudara-saudara kita yang membutuhkan. Barakallahu fiikum." });
+    await storage.createDonation({ programId: p1.id, donorName: "Hamba Allah", amount: 100000, message: "Lillahi ta'ala, semoga Allah memudahkan urusan mereka." });
+    await storage.createDonation({ programId: p1.id, donorName: "Siti Aminah", amount: 250000, message: "Ya Allah, terimalah sedekah ini dan jadikanlah pemberat timbangan amal kebaikan kami." });
+    await storage.createDonation({ programId: p1.id, donorName: "Muhammad Rizki", amount: 1000000, message: "Semoga menjadi amal jariyah yang tidak terputus pahalanya." });
+    await storage.createDonation({ programId: p1.id, donorName: "Hamba Allah", amount: 50000, message: null });
+    await storage.createDonation({ programId: p2.id, donorName: "Fatimah Az-Zahra", amount: 2000000, message: "Untuk adik-adik yatim, tetap semangat menuntut ilmu. Semoga Allah mudahkan jalan kalian." });
+    await storage.createDonation({ programId: p2.id, donorName: "Keluarga Besar Hasan", amount: 5000000, message: "Semoga ilmu yang didapat menjadi berkah dunia dan akhirat." });
+    await storage.createDonation({ programId: p2.id, donorName: "Hamba Allah", amount: 300000, message: "Allahumma baarik lahum fii ilmihim." });
+    await storage.createDonation({ programId: p3.id, donorName: "Umar Hakim", amount: 1500000, message: "Semoga sumur ini menjadi amal jariyah yang terus mengalir pahalanya." });
+    await storage.createDonation({ programId: p3.id, donorName: "Aisyah Putri", amount: 750000, message: "Ya Allah, jadikanlah air ini sumber keberkahan bagi mereka." });
+    await storage.createDonation({ programId: p3.id, donorName: "Hamba Allah", amount: 200000, message: null });
   }
 }
 
@@ -101,6 +119,11 @@ export async function registerRoutes(
       }
       throw err;
     }
+  });
+
+  app.get(api.programDonations.list.path, async (req, res) => {
+    const donationsList = await storage.getDonationsByProgram(Number(req.params.id));
+    res.json(donationsList);
   });
 
   app.get(api.donations.list.path, async (req, res) => {

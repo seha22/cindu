@@ -10,7 +10,7 @@ import {
   type InsertArticle,
   type Article,
 } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export interface IStorage {
   getPrograms(): Promise<Program[]>;
@@ -19,6 +19,8 @@ export interface IStorage {
   
   getDonations(): Promise<Donation[]>;
   createDonation(donation: InsertDonation): Promise<Donation>;
+
+  getDonationsByProgram(programId: number): Promise<Donation[]>;
 
   getArticles(): Promise<Article[]>;
   getArticle(id: number): Promise<Article | undefined>;
@@ -46,7 +48,17 @@ export class DatabaseStorage implements IStorage {
 
   async createDonation(donation: InsertDonation): Promise<Donation> {
     const [newDonation] = await db.insert(donations).values(donation).returning();
+    await db.update(programs)
+      .set({
+        currentAmount: sql`${programs.currentAmount} + ${donation.amount}`,
+        donorCount: sql`${programs.donorCount} + 1`,
+      })
+      .where(eq(programs.id, donation.programId));
     return newDonation;
+  }
+
+  async getDonationsByProgram(programId: number): Promise<Donation[]> {
+    return await db.select().from(donations).where(eq(donations.programId, programId));
   }
 
   async getArticles(): Promise<Article[]> {

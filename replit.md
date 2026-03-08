@@ -11,6 +11,7 @@ Website for Yayasan Cinta Dhuafa, a charity foundation focused on helping underp
 ## Pages
 - **Beranda** (`/`) - Landing page with hero, stats, featured programs
 - **Program Amal** (`/programs`) - List of charity programs with donation dialog
+- **Detail Program** (`/programs/:id`) - Full program detail with description, donation sidebar, preset amounts, and donor list with prayers
 - **Artikel** (`/articles`) - Articles & news with detail view
 
 ## Key Files
@@ -30,9 +31,10 @@ Website for Yayasan Cinta Dhuafa, a charity foundation focused on helping underp
 
 ## API Endpoints
 - `GET /api/programs` - List all programs
-- `GET /api/programs/:id` - Get single program
+- `GET /api/programs/:id` - Get single program (includes content field)
 - `POST /api/programs` - Create program
-- `GET /api/donations` - List donations
+- `GET /api/programs/:id/donations` - List donations for a specific program
+- `GET /api/donations` - List all donations
 - `POST /api/donations` - Create donation
 - `GET /api/articles` - List all articles
 - `GET /api/articles/:id` - Get single article
