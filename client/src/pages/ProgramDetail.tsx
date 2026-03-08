@@ -5,6 +5,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import DonationDialog from "@/components/programs/DonationDialog";
 import { useProgram } from "@/hooks/use-programs";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
@@ -111,6 +112,7 @@ export default function ProgramDetail() {
   const params = useParams<{ id: string }>();
   const programId = Number(params.id);
   const { data: program, isLoading } = useProgram(programId);
+  const { user } = useAuth();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [presetAmount, setPresetAmount] = useState<number | null>(null);
 
@@ -313,6 +315,7 @@ export default function ProgramDetail() {
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
         presetAmount={presetAmount}
+        user={user ? { fullName: user.fullName, email: user.email } : null}
       />
     </div>
   );

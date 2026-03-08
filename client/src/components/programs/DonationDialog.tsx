@@ -4,83 +4,118 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreateDonation } from "@/hooks/use-donations";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Heart, Loader2 } from "lucide-react";
 import type { Program } from "@shared/schema";
+
+declare global {
+  interface Window {
+    snap?: {
+      pay: (token: string, options: any) => void;
+    };
+  }
+}
 
 interface DonationDialogProps {
   program: Program | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   presetAmount?: number | null;
+  user?: { fullName: string; email: string } | null;
 }
 
 const PREDEFINED_AMOUNTS = [50000, 100000, 250000, 500000];
 
-export default function DonationDialog({ program, open, onOpenChange, presetAmount }: DonationDialogProps) {
+export default function DonationDialog({ program, open, onOpenChange, presetAmount, user }: DonationDialogProps) {
   const { toast } = useToast();
-  const createDonation = useCreateDonation();
-  
+
   const [amount, setAmount] = useState<number | "">(presetAmount || "");
-  const [donorName, setDonorName] = useState("");
+  const [donorName, setDonorName] = useState(user?.fullName || "");
+  const [donorEmail, setDonorEmail] = useState(user?.email || "");
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (open && presetAmount) {
-      setAmount(presetAmount);
-    }
+    if (open && presetAmount) setAmount(presetAmount);
   }, [open, presetAmount]);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value);
-  };
+  useEffect(() => {
+    if (open && user) {
+      setDonorName(user.fullName);
+      setDonorEmail(user.email);
+    }
+  }, [open, user]);
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!program) return;
     if (!amount || amount < 10000) {
-      toast({
-        title: "Nominal tidak valid",
-        description: "Minimal donasi adalah Rp 10.000",
-        variant: "destructive"
-      });
+      toast({ title: "Nominal tidak valid", description: "Minimal donasi adalah Rp 10.000", variant: "destructive" });
       return;
     }
     if (!donorName.trim()) {
-      toast({
-        title: "Nama diperlukan",
-        description: "Mohon masukkan nama Anda",
-        variant: "destructive"
-      });
+      toast({ title: "Nama diperlukan", description: "Mohon masukkan nama Anda", variant: "destructive" });
       return;
     }
 
+    setLoading(true);
     try {
-      await createDonation.mutateAsync({
+      const res = await apiRequest("POST", "/api/donations/create-payment", {
         programId: program.id,
-        amount: Number(amount),
         donorName: donorName.trim(),
-        message: message.trim() || undefined
+        donorEmail: donorEmail.trim() || undefined,
+        amount: Number(amount),
+        message: message.trim() || undefined,
       });
-      
-      toast({
-        title: "Alhamdulillah!",
-        description: "Donasi Anda berhasil diproses. Terima kasih atas kebaikannya.",
-      });
-      
-      // Reset & close
-      setAmount("");
-      setDonorName("");
-      setMessage("");
-      onOpenChange(false);
+      const result = await res.json();
+
+      if (result.snapToken && window.snap) {
+        window.snap.pay(result.snapToken, {
+          onSuccess: () => {
+            toast({ title: "Alhamdulillah!", description: "Pembayaran berhasil. Terima kasih atas kebaikannya." });
+            queryClient.invalidateQueries({ queryKey: ["/api/programs"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/donations"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/user/donations"] });
+            resetAndClose();
+          },
+          onPending: () => {
+            toast({ title: "Menunggu Pembayaran", description: "Silakan selesaikan pembayaran Anda." });
+            resetAndClose();
+          },
+          onError: () => {
+            toast({ title: "Pembayaran Gagal", description: "Terjadi kesalahan saat memproses pembayaran.", variant: "destructive" });
+          },
+          onClose: () => {
+            toast({ title: "Pembayaran Dibatalkan", description: "Anda menutup halaman pembayaran." });
+          },
+        });
+      } else {
+        toast({
+          title: "Donasi Tercatat",
+          description: result.midtransError || "Donasi berhasil dicatat. Pembayaran akan diproses.",
+        });
+        queryClient.invalidateQueries({ queryKey: ["/api/programs"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/donations"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/user/donations"] });
+        resetAndClose();
+      }
     } catch (err: any) {
-      toast({
-        title: "Gagal memproses donasi",
-        description: err.message,
-        variant: "destructive"
-      });
+      toast({ title: "Gagal memproses donasi", description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const resetAndClose = () => {
+    setAmount("");
+    setDonorName(user?.fullName || "");
+    setDonorEmail(user?.email || "");
+    setMessage("");
+    onOpenChange(false);
   };
 
   return (
@@ -89,19 +124,11 @@ export default function DonationDialog({ program, open, onOpenChange, presetAmou
         {program && (
           <>
             <div className="relative h-32 w-full overflow-hidden bg-primary/10">
-              <img 
-                src={program.imageUrl} 
-                alt={program.title} 
-                className="w-full h-full object-cover opacity-60 mix-blend-overlay"
-              />
+              <img src={program.imageUrl} alt={program.title} className="w-full h-full object-cover opacity-60 mix-blend-overlay" />
               <div className="absolute inset-0 bg-gradient-to-t from-primary/90 to-transparent" />
               <div className="absolute bottom-4 left-6 right-6 text-white">
-                <DialogTitle className="font-display text-2xl font-bold leading-tight">
-                  {program.title}
-                </DialogTitle>
-                <DialogDescription className="text-white/80 mt-1">
-                  Mulai berdonasi untuk program ini
-                </DialogDescription>
+                <DialogTitle className="font-display text-2xl font-bold leading-tight">{program.title}</DialogTitle>
+                <DialogDescription className="text-white/80 mt-1">Mulai berdonasi untuk program ini</DialogDescription>
               </div>
             </div>
 
@@ -116,10 +143,11 @@ export default function DonationDialog({ program, open, onOpenChange, presetAmou
                         key={amt}
                         onClick={() => setAmount(amt)}
                         className={`py-3 px-4 rounded-xl border-2 text-sm font-semibold transition-all duration-200 ${
-                          amount === amt 
-                            ? "border-primary bg-primary/5 text-primary shadow-sm" 
+                          amount === amt
+                            ? "border-primary bg-primary/5 text-primary shadow-sm"
                             : "border-border bg-transparent text-muted-foreground hover:border-primary/30 hover:bg-secondary/50"
                         }`}
+                        data-testid={`button-amount-${amt}`}
                       >
                         {formatCurrency(amt)}
                       </button>
@@ -139,6 +167,7 @@ export default function DonationDialog({ program, open, onOpenChange, presetAmou
                       value={amount}
                       onChange={(e) => setAmount(e.target.value ? Number(e.target.value) : "")}
                       className="pl-12 py-6 text-lg font-bold bg-secondary/30 border-2 border-border focus-visible:ring-primary/20 focus-visible:border-primary rounded-xl"
+                      data-testid="input-custom-amount"
                     />
                   </div>
                 </div>
@@ -152,6 +181,20 @@ export default function DonationDialog({ program, open, onOpenChange, presetAmou
                     onChange={(e) => setDonorName(e.target.value)}
                     className="py-6 bg-secondary/30 border-2 border-border focus-visible:ring-primary/20 focus-visible:border-primary rounded-xl"
                     required
+                    data-testid="input-donor-name"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="donorEmail" className="text-foreground font-semibold">Email (Opsional)</Label>
+                  <Input
+                    id="donorEmail"
+                    type="email"
+                    placeholder="email@contoh.com"
+                    value={donorEmail}
+                    onChange={(e) => setDonorEmail(e.target.value)}
+                    className="py-6 bg-secondary/30 border-2 border-border focus-visible:ring-primary/20 focus-visible:border-primary rounded-xl"
+                    data-testid="input-donor-email"
                   />
                 </div>
 
@@ -163,25 +206,21 @@ export default function DonationDialog({ program, open, onOpenChange, presetAmou
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     className="bg-secondary/30 border-2 border-border focus-visible:ring-primary/20 focus-visible:border-primary rounded-xl resize-none min-h-[100px]"
+                    data-testid="input-donation-message"
                   />
                 </div>
               </div>
 
               <Button
                 type="submit"
-                disabled={createDonation.isPending}
+                disabled={loading}
                 className="w-full py-6 text-lg font-bold rounded-xl bg-gradient-to-r from-primary to-teal-500 hover:to-primary text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5 transition-all duration-300"
+                data-testid="button-submit-donation"
               >
-                {createDonation.isPending ? (
-                  <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Memproses...
-                  </>
+                {loading ? (
+                  <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Memproses...</>
                 ) : (
-                  <>
-                    <Heart className="w-5 h-5 mr-2 fill-white/20" />
-                    Lanjutkan Pembayaran
-                  </>
+                  <><Heart className="w-5 h-5 mr-2 fill-white/20" />Lanjutkan Pembayaran</>
                 )}
               </Button>
             </form>

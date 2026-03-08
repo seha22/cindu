@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Heart, ChevronDown, Menu, X } from "lucide-react";
+import { Heart, ChevronDown, Menu, X, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 
 const aboutLinks = [
   { href: "/about/sejarah", label: "Sejarah" },
@@ -13,8 +14,11 @@ const aboutLinks = [
 export default function Navbar() {
   const [location] = useLocation();
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  const { user, logout, isAdmin } = useAuth();
 
   const isAboutActive = location.startsWith("/about");
 
@@ -22,6 +26,9 @@ export default function Navbar() {
     function handleClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setAboutOpen(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -31,6 +38,7 @@ export default function Navbar() {
   useEffect(() => {
     setMobileOpen(false);
     setAboutOpen(false);
+    setUserMenuOpen(false);
   }, [location]);
 
   const mainLinks = [
@@ -71,7 +79,6 @@ export default function Navbar() {
                 onKeyDown={(e) => { if (e.key === "Escape") setAboutOpen(false); }}
                 aria-expanded={aboutOpen}
                 aria-haspopup="menu"
-                aria-controls="about-dropdown"
                 className={`flex items-center gap-1 text-sm font-semibold transition-colors duration-200 hover:text-primary ${
                   isAboutActive ? "text-primary" : "text-muted-foreground"
                 }`}
@@ -82,7 +89,7 @@ export default function Navbar() {
               </button>
 
               {aboutOpen && (
-                <div id="about-dropdown" role="menu" className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-52 bg-card rounded-2xl border border-border/50 shadow-xl shadow-primary/10 py-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div role="menu" className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-52 bg-card rounded-2xl border border-border/50 shadow-xl shadow-primary/10 py-2 animate-in fade-in slide-in-from-top-2 duration-200">
                   {aboutLinks.map((link) => (
                     <Link
                       key={link.href}
@@ -99,11 +106,62 @@ export default function Navbar() {
               )}
             </div>
 
-            <Link href="/programs">
-              <Button className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-6 shadow-lg shadow-accent/20 rounded-full transition-all hover:-translate-y-0.5">
-                Mulai Donasi
-              </Button>
-            </Link>
+            {user ? (
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-primary transition-colors"
+                  data-testid="button-user-menu"
+                >
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="w-4 h-4 text-primary" />
+                  </div>
+                  <span className="hidden lg:inline">{user.fullName}</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                {userMenuOpen && (
+                  <div className="absolute top-full mt-2 right-0 w-48 bg-card rounded-2xl border border-border/50 shadow-xl py-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <Link
+                      href={isAdmin ? "/admin" : "/dashboard"}
+                      className="block px-4 py-2.5 text-sm font-medium text-foreground/80 hover:bg-primary/5 hover:text-primary transition-colors"
+                      data-testid="link-dashboard"
+                    >
+                      {isAdmin ? "Admin Panel" : "Dashboard"}
+                    </Link>
+                    {!isAdmin && (
+                      <Link
+                        href="/dashboard/profile"
+                        className="block px-4 py-2.5 text-sm font-medium text-foreground/80 hover:bg-primary/5 hover:text-primary transition-colors"
+                        data-testid="link-profile"
+                      >
+                        Profil Saya
+                      </Link>
+                    )}
+                    <button
+                      onClick={logout}
+                      className="w-full text-left px-4 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/5 transition-colors"
+                      data-testid="button-logout-nav"
+                    >
+                      Keluar
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <Link href="/login">
+                  <Button variant="ghost" className="text-sm font-semibold" data-testid="link-login">
+                    Masuk
+                  </Button>
+                </Link>
+                <Link href="/programs">
+                  <Button className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-6 shadow-lg shadow-accent/20 rounded-full transition-all hover:-translate-y-0.5" data-testid="button-donate">
+                    Mulai Donasi
+                  </Button>
+                </Link>
+              </div>
+            )}
           </nav>
 
           <div className="md:hidden flex items-center gap-2">
@@ -154,6 +212,32 @@ export default function Navbar() {
                     </Link>
                   ))}
                 </div>
+              </div>
+
+              <div className="px-4 pt-3 border-t border-border/50">
+                {user ? (
+                  <div className="space-y-1">
+                    <Link
+                      href={isAdmin ? "/admin" : "/dashboard"}
+                      className="block px-4 py-3 rounded-xl text-sm font-semibold text-foreground/80 hover:bg-primary/5"
+                    >
+                      {isAdmin ? "Admin Panel" : "Dashboard"}
+                    </Link>
+                    <button
+                      onClick={logout}
+                      className="w-full text-left px-4 py-3 rounded-xl text-sm font-semibold text-destructive hover:bg-destructive/5"
+                    >
+                      Keluar
+                    </button>
+                  </div>
+                ) : (
+                  <Link
+                    href="/login"
+                    className="block px-4 py-3 rounded-xl text-sm font-semibold text-primary hover:bg-primary/5"
+                  >
+                    Masuk
+                  </Link>
+                )}
               </div>
             </div>
           </div>

@@ -1,41 +1,45 @@
-import { Clock, Heart, Award, Users } from "lucide-react";
+import { Clock, Heart, Award, Users, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import type { CmsPage } from "@shared/schema";
 
-const milestones = [
-  {
-    year: "2010",
-    title: "Pendirian Yayasan",
-    description: "Yayasan Cinta Dhuafa didirikan oleh sekelompok relawan yang memiliki kepedulian tinggi terhadap masyarakat kurang mampu di Indonesia.",
-    icon: Heart,
-  },
-  {
-    year: "2013",
-    title: "Ekspansi Program",
-    description: "Memperluas jangkauan program ke berbagai provinsi di Indonesia dengan fokus pada pendidikan dan kesehatan masyarakat.",
-    icon: Users,
-  },
-  {
-    year: "2017",
-    title: "Pengakuan Nasional",
-    description: "Mendapatkan penghargaan sebagai salah satu yayasan terpercaya dalam pengelolaan dana sosial dan program pemberdayaan masyarakat.",
-    icon: Award,
-  },
-  {
-    year: "2020",
-    title: "Transformasi Digital",
-    description: "Mengadopsi teknologi digital untuk mempermudah donasi dan memperluas jangkauan program ke seluruh Indonesia.",
-    icon: Clock,
-  },
-  {
-    year: "2024",
-    title: "Dampak Berkelanjutan",
-    description: "Telah membantu lebih dari 50.000 penerima manfaat di seluruh Indonesia melalui berbagai program pemberdayaan.",
-    icon: Heart,
-  },
+const iconMap: Record<number, any> = { 0: Heart, 1: Users, 2: Award, 3: Clock, 4: Heart };
+
+const defaultMilestones = [
+  { year: "2010", title: "Pendirian Yayasan", description: "Yayasan Cinta Dhuafa didirikan oleh sekelompok relawan yang memiliki kepedulian tinggi terhadap masyarakat kurang mampu di Indonesia." },
+  { year: "2013", title: "Ekspansi Program", description: "Memperluas jangkauan program ke berbagai provinsi di Indonesia dengan fokus pada pendidikan dan kesehatan masyarakat." },
+  { year: "2017", title: "Pengakuan Nasional", description: "Mendapatkan penghargaan sebagai salah satu yayasan terpercaya dalam pengelolaan dana sosial." },
+  { year: "2020", title: "Transformasi Digital", description: "Mengadopsi teknologi digital untuk mempermudah donasi dan memperluas jangkauan program." },
+  { year: "2024", title: "Dampak Berkelanjutan", description: "Telah membantu lebih dari 50.000 penerima manfaat di seluruh Indonesia." },
 ];
 
 export default function Sejarah() {
+  const { data: page, isLoading } = useQuery<CmsPage>({ queryKey: ["/api/cms/sejarah"] });
+
+  let intro = "Perjalanan panjang Yayasan Cinta Dhuafa dalam memberikan manfaat bagi masyarakat yang membutuhkan.";
+  let milestones = defaultMilestones;
+
+  if (page) {
+    try {
+      const content = JSON.parse(page.content);
+      if (content.intro) intro = content.intro;
+      if (content.timeline) milestones = content.timeline;
+    } catch {}
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Navbar />
+        <main className="flex-1 pt-32 pb-24 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
@@ -46,9 +50,7 @@ export default function Sejarah() {
             <h1 className="font-bold text-4xl md:text-5xl text-foreground mb-6" data-testid="text-sejarah-heading">
               Sejarah <span className="text-primary">Kami</span>
             </h1>
-            <p className="text-lg text-muted-foreground">
-              Perjalanan panjang Yayasan Cinta Dhuafa dalam memberikan manfaat bagi masyarakat yang membutuhkan.
-            </p>
+            <p className="text-lg text-muted-foreground">{intro}</p>
           </div>
 
           <div className="relative">
@@ -56,7 +58,7 @@ export default function Sejarah() {
 
             <div className="space-y-12">
               {milestones.map((milestone, index) => {
-                const Icon = milestone.icon;
+                const Icon = iconMap[index % 5] || Heart;
                 const isLeft = index % 2 === 0;
 
                 return (

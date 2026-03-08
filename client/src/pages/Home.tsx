@@ -6,11 +6,13 @@ import Footer from "@/components/layout/Footer";
 import ProgramCard from "@/components/programs/ProgramCard";
 import DonationDialog from "@/components/programs/DonationDialog";
 import { usePrograms } from "@/hooks/use-programs";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import type { Program } from "@shared/schema";
 
 export default function Home() {
   const { data: programs, isLoading } = usePrograms();
+  const { user } = useAuth();
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -144,6 +146,7 @@ export default function Home() {
         program={selectedProgram}
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
+        user={user ? { fullName: user.fullName, email: user.email } : null}
       />
     </div>
   );

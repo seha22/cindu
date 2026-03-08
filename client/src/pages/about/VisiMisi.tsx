@@ -1,8 +1,10 @@
-import { Eye, Target, CheckCircle } from "lucide-react";
+import { Eye, Target, CheckCircle, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import type { CmsPage } from "@shared/schema";
 
-const misiItems = [
+const defaultMisi = [
   "Menyelenggarakan program-program sosial yang tepat sasaran dan berkelanjutan untuk masyarakat kurang mampu.",
   "Memberikan akses pendidikan berkualitas bagi anak-anak dari keluarga prasejahtera.",
   "Menyediakan layanan kesehatan dan gizi untuk meningkatkan kualitas hidup masyarakat.",
@@ -12,6 +14,31 @@ const misiItems = [
 ];
 
 export default function VisiMisi() {
+  const { data: page, isLoading } = useQuery<CmsPage>({ queryKey: ["/api/cms/visi-misi"] });
+
+  let visi = "Menjadi yayasan terdepan dan terpercaya dalam memberdayakan masyarakat kurang mampu untuk mencapai kehidupan yang bermartabat, mandiri, dan sejahtera melalui program-program sosial yang berkelanjutan.";
+  let misiItems = defaultMisi;
+
+  if (page) {
+    try {
+      const content = JSON.parse(page.content);
+      if (content.visi) visi = content.visi;
+      if (content.misi) misiItems = content.misi;
+    } catch {}
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Navbar />
+        <main className="flex-1 pt-32 pb-24 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
@@ -33,9 +60,7 @@ export default function VisiMisi() {
                 <Eye className="w-7 h-7 text-white" />
               </div>
               <h2 className="font-bold text-2xl mb-4">Visi</h2>
-              <p className="text-white/90 text-lg leading-relaxed">
-                Menjadi yayasan terdepan dan terpercaya dalam memberdayakan masyarakat kurang mampu untuk mencapai kehidupan yang bermartabat, mandiri, dan sejahtera melalui program-program sosial yang berkelanjutan.
-              </p>
+              <p className="text-white/90 text-lg leading-relaxed">{visi}</p>
             </div>
 
             <div className="bg-gradient-to-br from-accent to-accent/80 rounded-3xl p-10 text-accent-foreground shadow-xl shadow-accent/20" data-testid="card-misi-intro">
