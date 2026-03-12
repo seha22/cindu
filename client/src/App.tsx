@@ -27,7 +27,9 @@ import Profile from "@/pages/dashboard/Profile";
 import DonationHistory from "@/pages/dashboard/DonationHistory";
 import { Loader2 } from "lucide-react";
 
-function AdminRoute({ component: Component }: { component: () => JSX.Element }) {
+type GuardedComponent = () => JSX.Element | null;
+
+function AdminRoute({ component: Component }: { component: GuardedComponent }) {
   const { user, isLoading, isAdmin } = useAuth();
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   if (!user) return <Redirect to="/login" />;
@@ -35,14 +37,14 @@ function AdminRoute({ component: Component }: { component: () => JSX.Element }) 
   return <Component />;
 }
 
-function UserRoute({ component: Component }: { component: () => JSX.Element }) {
+function UserRoute({ component: Component }: { component: GuardedComponent }) {
   const { user, isLoading } = useAuth();
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   if (!user) return <Redirect to="/login" />;
   return <Component />;
 }
 
-function GuestRoute({ component: Component }: { component: () => JSX.Element }) {
+function GuestRoute({ component: Component }: { component: GuardedComponent }) {
   const { user, isLoading, isAdmin } = useAuth();
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   if (user) return <Redirect to={isAdmin ? "/admin" : "/dashboard"} />;

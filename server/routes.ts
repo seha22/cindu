@@ -6,6 +6,107 @@ import passport from "passport";
 import { setupAuth, requireAuth, requireAdmin, hashPassword } from "./auth";
 import { createSnapTransaction, getClientKey, verifySignatureKey } from "./midtrans";
 import { insertArticleSchema, insertProgramSchema, insertCmsPageSchema } from "@shared/schema";
+import multer from "multer";
+import fs from "fs";
+import path from "path";
+
+const uploadsRoot = path.resolve(process.cwd(), "uploads");
+const heroUploadsDir = path.join(uploadsRoot, "hero");
+
+if (!fs.existsSync(heroUploadsDir)) {
+  fs.mkdirSync(heroUploadsDir, { recursive: true });
+}
+
+const allowedHeroMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+const heroUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, heroUploadsDir),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || "").toLowerCase() || ".jpg";
+      const safeExt = [".jpg", ".jpeg", ".png", ".webp"].includes(ext) ? ext : ".jpg";
+      cb(null, `hero-${Date.now()}-${Math.random().toString(36).slice(2, 10)}${safeExt}`);
+    },
+  }),
+  limits: { fileSize: 3 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!allowedHeroMimeTypes.has(file.mimetype)) {
+      cb(new Error("Format file tidak didukung. Gunakan JPG, PNG, atau WEBP."));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+function toPublicUploadPath(fileName: string) {
+  return `/uploads/hero/${fileName}`;
+}
+
+function toAbsoluteUploadPath(publicPath: string) {
+  const normalized = publicPath.replace(/^\/+/, "");
+  return path.resolve(process.cwd(), normalized);
+}
+
+function isAbsoluteHttpUrl(value: string) {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+const heroImageUrlSchema = z.string().trim().min(1, "URL gambar wajib diisi").refine(
+  (value) => value.startsWith("/uploads/") || isAbsoluteHttpUrl(value),
+  "URL gambar tidak valid",
+);
+
+function deleteFileIfExists(publicPath: string | null | undefined) {
+  if (!publicPath || !publicPath.startsWith("/uploads/")) {
+    return;
+  }
+
+  const absolutePath = toAbsoluteUploadPath(publicPath);
+  if (fs.existsSync(absolutePath)) {
+    fs.unlinkSync(absolutePath);
+  }
+}
+
+const heroSlideCreateSchema = z.object({
+  title: z.string().max(200).optional(),
+  subtitle: z.string().max(500).optional(),
+  altText: z.string().trim().min(1, "Teks alternatif wajib diisi"),
+  imageUrl: heroImageUrlSchema,
+  imagePath: z.string().optional().nullable(),
+  isActive: z.boolean().optional(),
+  sortOrder: z.number().int().nonnegative().optional(),
+});
+
+const heroSlideUpdateSchema = z.object({
+  title: z.string().max(200).optional(),
+  subtitle: z.string().max(500).optional(),
+  altText: z.string().trim().min(1, "Teks alternatif wajib diisi").optional(),
+  imageUrl: heroImageUrlSchema.optional(),
+  imagePath: z.string().optional().nullable(),
+  isActive: z.boolean().optional(),
+  sortOrder: z.number().int().nonnegative().optional(),
+});
+
+const heroReorderSchema = z.object({
+  items: z.array(
+    z.object({
+      id: z.number().int().positive(),
+      sortOrder: z.number().int().nonnegative(),
+    }),
+  ).min(1),
+});
+
+
+function shouldSeedDatabase() {
+  if (process.env.ENABLE_SEED === "true") return true;
+  if (process.env.ENABLE_SEED === "false") return false;
+  return process.env.NODE_ENV !== "production";
+}
 
 async function seedDatabase() {
   const existingArticles = await storage.getArticles();
@@ -82,6 +183,7 @@ async function seedDatabase() {
     await storage.createDonation({ programId: p3.id, donorName: "Umar Hakim", amount: 1500000, message: "Amal jariyah.", paymentStatus: "settlement" });
     await storage.createDonation({ programId: p3.id, donorName: "Aisyah Putri", amount: 750000, message: "Sumber keberkahan.", paymentStatus: "settlement" });
   }
+
 
   const existingAdmin = await storage.getUserByUsername("admin");
   if (!existingAdmin) {
@@ -161,6 +263,20 @@ async function seedDatabase() {
       }),
     });
   }
+
+  const existingHeroSlides = await storage.getHeroSlides(true);
+  if (existingHeroSlides.length === 0) {
+    await storage.createHeroSlide({
+      title: "",
+      subtitle: "",
+      altText: "Kegiatan sosial Yayasan Cinta Dhuafa",
+      imageUrl: "https://pixabay.com/get/g56b0474d1de4839510af3ede3e607d69258b65e606382a2961dad2f5e9e77347b7754484a81027c8a7636c9abd2c08258df3e5dfe8970394d7273d29731eaddc_1280.jpg",
+      imagePath: null,
+      isActive: true,
+      sortOrder: 1,
+    });
+  }
+
 }
 
 export async function registerRoutes(
@@ -276,6 +392,21 @@ export async function registerRoutes(
         message: d.message,
         createdAt: d.createdAt,
       }));
+    res.json(sanitized);
+  });
+
+  app.get("/api/donor-prayers", async (_req, res) => {
+    const donationsList = await storage.getDonations();
+    const sanitized = donationsList
+      .filter((donation) => donation.paymentStatus === "settlement" && donation.message && donation.message.trim().length > 0)
+      .slice(0, 10)
+      .map((donation) => ({
+        id: donation.id,
+        donorName: donation.donorName,
+        message: donation.message,
+        createdAt: donation.createdAt,
+      }));
+
     res.json(sanitized);
   });
 
@@ -433,6 +564,137 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/hero-slides", async (_req, res) => {
+    const slides = await storage.getHeroSlides();
+    res.json(slides);
+  });
+
+  app.get("/api/admin/hero-slides", requireAdmin, async (_req, res) => {
+    const slides = await storage.getHeroSlides(true);
+    res.json(slides);
+  });
+
+  app.post("/api/admin/uploads/hero", requireAdmin, (req, res) => {
+    heroUpload.single("file")(req, res, (err) => {
+      if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({ message: "Ukuran file maksimal 3MB" });
+      }
+
+      if (err) {
+        return res.status(400).json({ message: err.message || "Upload gagal" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "File wajib diunggah" });
+      }
+
+      const imagePath = toPublicUploadPath(req.file.filename);
+      return res.status(201).json({
+        imageUrl: imagePath,
+        imagePath,
+      });
+    });
+  });
+
+  app.post("/api/admin/hero-slides", requireAdmin, async (req, res) => {
+    try {
+      const payload = heroSlideCreateSchema.parse(req.body);
+      const slide = await storage.createHeroSlide({
+        title: payload.title ?? "",
+        subtitle: payload.subtitle ?? "",
+        altText: payload.altText,
+        imageUrl: payload.imageUrl,
+        imagePath: payload.imagePath ?? null,
+        isActive: payload.isActive ?? true,
+        sortOrder: payload.sortOrder ?? await storage.getNextHeroSlideSortOrder(),
+      });
+
+      return res.status(201).json(slide);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join(".") });
+      }
+      console.error("Create hero slide error:", err);
+      return res.status(500).json({ message: "Gagal menambahkan slide hero" });
+    }
+  });
+
+  app.put("/api/admin/hero-slides/:id", requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ message: "ID slide tidak valid" });
+    }
+
+    const existing = await storage.getHeroSlide(id);
+    if (!existing) {
+      return res.status(404).json({ message: "Slide hero tidak ditemukan" });
+    }
+
+    try {
+      const payload = heroSlideUpdateSchema.parse(req.body);
+      if (Object.keys(payload).length === 0) {
+        return res.status(400).json({ message: "Tidak ada data yang diperbarui" });
+      }
+
+      const nextImagePath = payload.imagePath === undefined ? existing.imagePath : (payload.imagePath ?? null);
+      const updated = await storage.updateHeroSlide(id, {
+        ...payload,
+        imagePath: nextImagePath,
+      });
+
+      if (!updated) {
+        return res.status(404).json({ message: "Slide hero tidak ditemukan" });
+      }
+
+      if (existing.imagePath && nextImagePath !== existing.imagePath) {
+        deleteFileIfExists(existing.imagePath);
+      }
+
+      return res.json(updated);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join(".") });
+      }
+      console.error("Update hero slide error:", err);
+      return res.status(500).json({ message: "Gagal memperbarui slide hero" });
+    }
+  });
+
+  app.delete("/api/admin/hero-slides/:id", requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ message: "ID slide tidak valid" });
+    }
+
+    const existing = await storage.getHeroSlide(id);
+    if (!existing) {
+      return res.status(404).json({ message: "Slide hero tidak ditemukan" });
+    }
+
+    const deleted = await storage.deleteHeroSlide(id);
+    if (!deleted) {
+      return res.status(404).json({ message: "Slide hero tidak ditemukan" });
+    }
+
+    deleteFileIfExists(existing.imagePath);
+    return res.json({ message: "Slide hero berhasil dihapus" });
+  });
+
+  app.patch("/api/admin/hero-slides/reorder", requireAdmin, async (req, res) => {
+    try {
+      const { items } = heroReorderSchema.parse(req.body);
+      await storage.reorderHeroSlides(items);
+      return res.json({ message: "Urutan slide berhasil diperbarui" });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join(".") });
+      }
+      console.error("Reorder hero slides error:", err);
+      return res.status(500).json({ message: "Gagal memperbarui urutan slide" });
+    }
+  });
+
+
   app.get("/api/user/donations", requireAuth, async (req, res) => {
     const userDonations = await storage.getDonationsByUser((req.user as any).id);
     res.json(userDonations);
@@ -554,7 +816,12 @@ export async function registerRoutes(
     });
   });
 
-  seedDatabase().catch(console.error);
+  if (shouldSeedDatabase()) {
+    seedDatabase().catch(console.error);
+  }
 
   return httpServer;
 }
+
+
+

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -77,3 +77,24 @@ export const cmsPages = pgTable("cms_pages", {
 export const insertCmsPageSchema = createInsertSchema(cmsPages).omit({ id: true, updatedAt: true });
 export type InsertCmsPage = z.infer<typeof insertCmsPageSchema>;
 export type CmsPage = typeof cmsPages.$inferSelect;
+
+export const heroSlides = pgTable("hero_slides", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull().default(""),
+  subtitle: text("subtitle").notNull().default(""),
+  altText: text("alt_text").notNull(),
+  imageUrl: text("image_url").notNull(),
+  imagePath: text("image_path"),
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertHeroSlideSchema = createInsertSchema(heroSlides).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertHeroSlide = z.infer<typeof insertHeroSlideSchema>;
+export type HeroSlide = typeof heroSlides.$inferSelect;

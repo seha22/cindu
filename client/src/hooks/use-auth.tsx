@@ -12,6 +12,7 @@ interface AuthUser {
   fullName: string;
   phone: string | null;
   address: string | null;
+  createdAt?: string | Date | null;
 }
 
 interface AuthContextType {

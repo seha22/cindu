@@ -21,6 +21,8 @@ export default function Login() {
     setLoading(true);
     try {
       await login(username, password);
+    } catch {
+      // Error toast is handled in use-auth mutation onError.
     } finally {
       setLoading(false);
     }
@@ -98,3 +100,4 @@ export default function Login() {
     </div>
   );
 }
+

@@ -4,10 +4,14 @@ import crypto from "crypto";
 let snap: any = null;
 let coreApi: any = null;
 
+function isMidtransProduction() {
+  return process.env.MIDTRANS_IS_PRODUCTION === "true";
+}
+
 function getSnap() {
   if (!snap) {
     snap = new midtransClient.Snap({
-      isProduction: false,
+      isProduction: isMidtransProduction(),
       serverKey: process.env.MIDTRANS_SERVER_KEY || "",
       clientKey: process.env.MIDTRANS_CLIENT_KEY || "",
     });
@@ -18,7 +22,7 @@ function getSnap() {
 function getCoreApi() {
   if (!coreApi) {
     coreApi = new midtransClient.CoreApi({
-      isProduction: false,
+      isProduction: isMidtransProduction(),
       serverKey: process.env.MIDTRANS_SERVER_KEY || "",
       clientKey: process.env.MIDTRANS_CLIENT_KEY || "",
     });

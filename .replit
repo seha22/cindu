@@ -39,7 +39,3 @@ args = "npm run dev"
 waitForPort = 5000
 
 [userenv]
-
-[userenv.shared]
-MIDTRANS_CLIENT_KEY = "SB-Mid-client-0uO-WK1QJgATp5Mz"
-MIDTRANS_SERVER_KEY = "SB-Mid-server-XJ0FXg8hE2xsbs64vPXIdhWY"

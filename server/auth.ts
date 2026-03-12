@@ -32,20 +32,31 @@ export function comparePassword(password: string, hash: string): boolean {
 
 export function setupAuth(app: Express) {
   const PgSession = connectPgSimple(session);
+  const isProduction = process.env.NODE_ENV === "production";
+  const sessionSecret = process.env.SESSION_SECRET || "dev-session-secret-change-me";
+
+  if (isProduction && !process.env.SESSION_SECRET) {
+    throw new Error("SESSION_SECRET must be set in production");
+  }
+
+  if (isProduction) {
+    app.set("trust proxy", 1);
+  }
 
   app.use(
     session({
+      name: "cinta_dhuafa.sid",
       store: new PgSession({
         conString: process.env.DATABASE_URL,
         createTableIfMissing: true,
       }),
-      secret: process.env.SESSION_SECRET || "cinta-dhuafa-secret-key-2024",
+      secret: sessionSecret,
       resave: false,
       saveUninitialized: false,
       cookie: {
         maxAge: 30 * 24 * 60 * 60 * 1000,
         httpOnly: true,
-        secure: false,
+        secure: isProduction,
         sameSite: "lax",
       },
     })

@@ -11,7 +11,7 @@ Website for Yayasan Cinta Dhuafa, a charity foundation focused on helping underp
 - **Database**: PostgreSQL with tables: users, programs, donations, articles, cms_pages, session
 
 ## User Roles
-- **Admin** (role: `admin`): Manages CMS content (articles, programs, CMS pages), views donations. Default admin: username=`admin`, password=`admin123`
+- **Admin** (role: `admin`): Manages CMS content (articles, programs, CMS pages), views donations. Create admin manually with `npm run admin:create -- --username ... --email ... --password ... --full-name ...`
 - **Orang Tua Asuh** (role: `orang_tua_asuh`): Foster parent with dashboard, profile management, and donation history
 - **Anonymous**: Non-authenticated users can browse and donate directly
 
@@ -108,14 +108,15 @@ Website for Yayasan Cinta Dhuafa, a charity foundation focused on helping underp
 - `POST /api/midtrans/notification` - Midtrans webhook handler
 
 ## Environment Variables
-- `DATABASE_URL` - PostgreSQL connection string (auto-configured)
-- `SESSION_SECRET` - Express session secret (defaults to fallback)
+- `DATABASE_URL` - PostgreSQL connection string
+- `SESSION_SECRET` - Express session secret
 - `MIDTRANS_SERVER_KEY` - Midtrans server key (sandbox)
 - `MIDTRANS_CLIENT_KEY` - Midtrans client key (sandbox)
+- `ENABLE_SEED` - Enable dummy content/program/CMS seeding outside production or explicitly via env
 
 ## Donation Flow
 1. User fills donation form (amount, name, email, message/prayer)
-2. Frontend calls `POST /api/donations/create-payment` → creates donation record (status: pending) + Midtrans Snap token
+2. Frontend calls `POST /api/donations/create-payment` -> creates donation record (status: pending) + Midtrans Snap token
 3. Midtrans Snap popup opens for payment
 4. On payment completion, Midtrans sends webhook to `POST /api/midtrans/notification`
 5. Webhook updates donation status (settlement/failed) and program currentAmount
