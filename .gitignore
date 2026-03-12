@@ -9,3 +9,5 @@ vite.config.ts.*
 .npm-cache
 uploads
 
+.local
+attached_assets
