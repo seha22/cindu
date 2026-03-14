@@ -5,7 +5,54 @@ import connectPgSimple from "connect-pg-simple";
 import { type Express } from "express";
 import { storage } from "./storage";
 import { compareSync, hashSync } from "bcryptjs";
-import { type User } from "@shared/schema";
+
+export const SESSION_COOKIE_NAME = "cinta_dhuafa.sid";
+
+function getTrustProxySetting() {
+  const trustProxy = process.env.TRUST_PROXY?.trim();
+  if (!trustProxy) {
+    return process.env.NODE_ENV === "production" ? true : false;
+  }
+
+  if (trustProxy === "true") return true;
+  if (trustProxy === "false") return false;
+
+  const numericValue = Number(trustProxy);
+  if (!Number.isNaN(numericValue)) {
+    return numericValue;
+  }
+
+  return trustProxy;
+}
+
+function isIpv4Host(hostname: string) {
+  return /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname);
+}
+
+export function getSessionCookieDomain() {
+  const configuredDomain = process.env.SESSION_COOKIE_DOMAIN?.trim();
+  if (!configuredDomain) {
+    return undefined;
+  }
+
+  const normalizedDomain = configuredDomain.replace(/^\.+/, "").toLowerCase();
+  if (!normalizedDomain || normalizedDomain === "localhost" || isIpv4Host(normalizedDomain)) {
+    return undefined;
+  }
+
+  return `.${normalizedDomain}`;
+}
+
+function getSessionCookieOptions(isProduction: boolean): session.CookieOptions {
+  return {
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+    httpOnly: true,
+    secure: isProduction ? "auto" : false,
+    sameSite: "lax",
+    domain: getSessionCookieDomain(),
+    path: "/",
+  };
+}
 
 declare global {
   namespace Express {
@@ -34,31 +81,35 @@ export function setupAuth(app: Express) {
   const PgSession = connectPgSimple(session);
   const isProduction = process.env.NODE_ENV === "production";
   const sessionSecret = process.env.SESSION_SECRET || "dev-session-secret-change-me";
+  const trustProxy = getTrustProxySetting();
 
   if (isProduction && !process.env.SESSION_SECRET) {
     throw new Error("SESSION_SECRET must be set in production");
   }
 
-  if (isProduction) {
-    app.set("trust proxy", 1);
+  if (trustProxy !== false) {
+    app.set("trust proxy", trustProxy);
   }
+
+  const pgSessionStore = new PgSession({
+    conString: process.env.DATABASE_URL,
+    createTableIfMissing: true,
+    pruneSessionInterval: 60 * 15, // Prune expired sessions every 15 minutes
+    errorLog: (err: Error) => {
+      console.error("[session-store] PgSession error:", err.message);
+    },
+  });
 
   app.use(
     session({
-      name: "cinta_dhuafa.sid",
-      store: new PgSession({
-        conString: process.env.DATABASE_URL,
-        createTableIfMissing: true,
-      }),
+      name: SESSION_COOKIE_NAME,
+      store: pgSessionStore,
       secret: sessionSecret,
-      resave: false,
+      resave: true,
       saveUninitialized: false,
-      cookie: {
-        maxAge: 30 * 24 * 60 * 60 * 1000,
-        httpOnly: true,
-        secure: isProduction,
-        sameSite: "lax",
-      },
+      rolling: true,
+      proxy: isProduction,
+      cookie: getSessionCookieOptions(isProduction),
     })
   );
 

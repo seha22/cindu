@@ -11,6 +11,32 @@ import fs from "fs";
 import path from "path";
 
 const uploadsRoot = path.resolve(process.cwd(), "uploads");
+
+const programsUploadsDir = path.join(uploadsRoot, "programs");
+if (!fs.existsSync(programsUploadsDir)) {
+  fs.mkdirSync(programsUploadsDir, { recursive: true });
+}
+
+const programsUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, programsUploadsDir),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || "").toLowerCase() || ".jpg";
+      const safeExt = [".jpg", ".jpeg", ".png", ".webp"].includes(ext) ? ext : ".jpg";
+      cb(null, `program-${Date.now()}-${Math.random().toString(36).slice(2, 10)}${safeExt}`);
+    },
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+    if (!allowedMimeTypes.has(file.mimetype)) {
+      cb(new Error("Format file tidak didukung. Gunakan JPG, PNG, atau WEBP."));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
 const heroUploadsDir = path.join(uploadsRoot, "hero");
 
 if (!fs.existsSync(heroUploadsDir)) {
@@ -756,12 +782,55 @@ export async function registerRoutes(
     res.json(userDonations);
   });
 
-  app.get("/api/admin/reports", requireAdmin, async (_req, res) => {
+  app.get("/api/admin/reports", requireAdmin, async (req, res) => {
     const allPrograms = await storage.getPrograms();
     const allDonations = await storage.getDonations();
     const allUsers = await storage.getUsersByRole("orang_tua_asuh");
 
-    const settledDonations = allDonations.filter(d => d.paymentStatus === "settlement");
+    const fromParam = req.query.from as string | undefined;
+    const toParam = req.query.to as string | undefined;
+    const fromDate = fromParam ? new Date(fromParam + "T00:00:00") : null;
+    const toDate = toParam ? new Date(toParam + "T23:59:59") : null;
+
+    const allSettled = allDonations.filter(d => d.paymentStatus === "settlement");
+
+    const settledDonations = allSettled.filter(d => {
+      if (!d.createdAt) return !fromDate && !toDate;
+      const t = new Date(d.createdAt).getTime();
+      if (fromDate && t < fromDate.getTime()) return false;
+      if (toDate && t > toDate.getTime()) return false;
+      return true;
+    });
+
+    // Previous period calculation for growth comparison
+    let previousPeriodAmount = 0;
+    if (fromDate && toDate) {
+      const rangeLengthMs = toDate.getTime() - fromDate.getTime();
+      const prevFrom = new Date(fromDate.getTime() - rangeLengthMs);
+      const prevTo = new Date(fromDate.getTime() - 1);
+      previousPeriodAmount = allSettled
+        .filter(d => {
+          if (!d.createdAt) return false;
+          const t = new Date(d.createdAt).getTime();
+          return t >= prevFrom.getTime() && t <= prevTo.getTime();
+        })
+        .reduce((sum, d) => sum + d.amount, 0);
+    }
+
+    // Today & this week stats
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dayOfWeek = now.getDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset);
+
+    const todayDonations = allSettled.filter(d => d.createdAt && new Date(d.createdAt) >= todayStart);
+    const weekDonations = allSettled.filter(d => d.createdAt && new Date(d.createdAt) >= weekStart);
+
+    // Conversion rate
+    const failedCount = allDonations.filter(d => d.paymentStatus === "failed").length;
+    const totalResolved = allSettled.length + failedCount;
+    const conversionRate = totalResolved > 0 ? Math.round((allSettled.length / totalResolved) * 100) : 0;
 
     const programStats = allPrograms.map(p => {
       const programDonations = settledDonations.filter(d => d.programId === p.id);
@@ -773,6 +842,7 @@ export async function registerRoutes(
         donorCount: p.donorCount,
         percentage: p.targetAmount > 0 ? Math.round((p.currentAmount / p.targetAmount) * 100) : 0,
         totalFromDonations: programDonations.reduce((sum, d) => sum + d.amount, 0),
+        donationsInRange: programDonations.length,
       };
     });
 
@@ -788,7 +858,7 @@ export async function registerRoutes(
     });
     const monthlyStats = Array.from(monthlyMap.entries())
       .map(([month, data]) => ({ month, ...data }))
-      .sort((a, b) => b.month.localeCompare(a.month));
+      .sort((a, b) => a.month.localeCompare(b.month));
 
     const donorMap = new Map<string, { name: string; amount: number; count: number }>();
     settledDonations.forEach(d => {
@@ -802,17 +872,81 @@ export async function registerRoutes(
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 10);
 
+    const totalAmount = settledDonations.reduce((sum, d) => sum + d.amount, 0);
+
     res.json({
       overview: {
         totalUsers: allUsers.length,
         totalSettledDonations: settledDonations.length,
-        totalAmount: settledDonations.reduce((sum, d) => sum + d.amount, 0),
+        totalAmount,
         totalPrograms: allPrograms.length,
         pendingDonations: allDonations.filter(d => d.paymentStatus === "pending").length,
+        averageDonation: settledDonations.length > 0 ? Math.round(totalAmount / settledDonations.length) : 0,
+        conversionRate,
+        todayAmount: todayDonations.reduce((sum, d) => sum + d.amount, 0),
+        todayCount: todayDonations.length,
+        weekAmount: weekDonations.reduce((sum, d) => sum + d.amount, 0),
+        weekCount: weekDonations.length,
+        previousPeriodAmount,
       },
       programStats,
       monthlyStats,
       topDonors,
+    });
+  });
+
+  app.get("/api/admin/reports/export", requireAdmin, async (req, res) => {
+    const allDonations = await storage.getDonations();
+    const allPrograms = await storage.getPrograms();
+    const fromParam = req.query.from as string | undefined;
+    const toParam = req.query.to as string | undefined;
+    const fromDate = fromParam ? new Date(fromParam + "T00:00:00") : null;
+    const toDate = toParam ? new Date(toParam + "T23:59:59") : null;
+
+    const settled = allDonations
+      .filter(d => d.paymentStatus === "settlement")
+      .filter(d => {
+        if (!d.createdAt) return !fromDate && !toDate;
+        const t = new Date(d.createdAt).getTime();
+        if (fromDate && t < fromDate.getTime()) return false;
+        if (toDate && t > toDate.getTime()) return false;
+        return true;
+      });
+
+    const programMap = new Map(allPrograms.map(p => [p.id, p.title]));
+
+    const header = "No,Tanggal,Nama Donatur,Email,Program,Jumlah,Pesan";
+    const rows = settled.map((d, i) => {
+      const date = d.createdAt ? new Date(d.createdAt).toLocaleDateString("id-ID") : "-";
+      const program = programMap.get(d.programId) || "-";
+      const msg = (d.message || "").replace(/"/g, '""');
+      return `${i + 1},${date},${d.donorName},${d.donorEmail || "-"},${program},${d.amount},"${msg}"`;
+    });
+
+    const csv = "\uFEFF" + [header, ...rows].join("\n");
+
+    const fileDate = new Date().toISOString().split("T")[0];
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="laporan-donasi-${fileDate}.csv"`);
+    res.send(csv);
+  });
+
+  app.post("/api/admin/uploads/programs", requireAdmin, (req, res) => {
+    programsUpload.array("files", 10)(req, res, (err) => {
+      if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({ message: "Ukuran file maksimal 5MB" });
+      }
+
+      if (err) {
+        return res.status(400).json({ message: err.message || "Upload gagal" });
+      }
+
+      if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+        return res.status(400).json({ message: "File wajib diunggah" });
+      }
+
+      const imageUrls = req.files.map((file: any) => `/uploads/programs/${file.filename}`);
+      return res.status(201).json({ imageUrls });
     });
   });
 
@@ -822,6 +956,3 @@ export async function registerRoutes(
 
   return httpServer;
 }
-
-
-

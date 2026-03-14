@@ -4,13 +4,13 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import type { CmsPage } from "@shared/schema";
 
-const defaultMembers = [
-  { name: "Dr. H. Ahmad Sulaiman", position: "Ketua Yayasan" },
-  { name: "Hj. Fatimah Azzahra, M.Pd", position: "Wakil Ketua" },
-  { name: "Ustadz Muhammad Hasan", position: "Sekretaris Jenderal" },
-  { name: "Ir. Abdullah Rahman", position: "Bendahara" },
-  { name: "Siti Khadijah, S.Sos", position: "Direktur Program" },
-  { name: "Ahmad Fauzi, SE", position: "Direktur Keuangan" },
+const defaultMembers: { name: string; position: string; image?: string }[] = [
+  { name: "Dr. H. Ahmad Sulaiman", position: "Ketua Yayasan", image: "" },
+  { name: "Hj. Fatimah Azzahra, M.Pd", position: "Wakil Ketua", image: "" },
+  { name: "Ustadz Muhammad Hasan", position: "Sekretaris Jenderal", image: "" },
+  { name: "Ir. Abdullah Rahman", position: "Bendahara", image: "" },
+  { name: "Siti Khadijah, S.Sos", position: "Direktur Program", image: "" },
+  { name: "Ahmad Fauzi, SE", position: "Direktur Keuangan", image: "" },
 ];
 
 export default function StrukturOrganisasi() {
@@ -24,7 +24,7 @@ export default function StrukturOrganisasi() {
       const content = JSON.parse(page.content);
       if (content.description) description = content.description;
       if (content.members) members = content.members;
-    } catch {}
+    } catch { }
   }
 
   if (isLoading) {
@@ -59,8 +59,12 @@ export default function StrukturOrganisasi() {
                 className="bg-white rounded-2xl border border-border/50 shadow-lg shadow-primary/5 p-6 text-center transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5"
                 data-testid={`card-member-${index}`}
               >
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <User className="w-8 h-8 text-primary" />
+                <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4 overflow-hidden border border-primary/20">
+                  {member.image ? (
+                    <img src={member.image} alt={member.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-12 h-12 text-primary opacity-60" />
+                  )}
                 </div>
                 <h3 className="font-bold text-foreground mb-1">{member.name}</h3>
                 <p className="text-sm text-muted-foreground">{member.position}</p>

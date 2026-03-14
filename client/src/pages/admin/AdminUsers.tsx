@@ -20,8 +20,18 @@ interface UserWithStats {
   donationCount: number;
 }
 
+interface GuestDonorSummary {
+  key: string;
+  donorName: string;
+  donorEmail: string | null;
+  totalDonations: number;
+  donationCount: number;
+  lastDonationAt: string | Date | null;
+}
+
 export default function AdminUsers() {
   const { data: users, isLoading } = useQuery<UserWithStats[]>({ queryKey: ["/api/admin/users"] });
+  const { data: allDonations, isLoading: allDonationsLoading } = useQuery<Donation[]>({ queryKey: ["/api/donations"] });
   const [selectedUser, setSelectedUser] = useState<UserWithStats | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -66,84 +76,169 @@ export default function AdminUsers() {
     setDetailOpen(true);
   };
 
+  const guestDonors: GuestDonorSummary[] = (() => {
+    const donorMap = new Map<string, GuestDonorSummary>();
+
+    for (const donation of allDonations || []) {
+      if (donation.userId || donation.paymentStatus !== "settlement") {
+        continue;
+      }
+
+      const key = `${(donation.donorName || "Hamba Allah").trim().toLowerCase()}::${(donation.donorEmail || "").trim().toLowerCase()}`;
+      const existing = donorMap.get(key);
+
+      if (existing) {
+        existing.totalDonations += donation.amount;
+        existing.donationCount += 1;
+
+        if (donation.createdAt && (!existing.lastDonationAt || new Date(donation.createdAt).getTime() > new Date(existing.lastDonationAt).getTime())) {
+          existing.lastDonationAt = donation.createdAt;
+        }
+      } else {
+        donorMap.set(key, {
+          key,
+          donorName: donation.donorName,
+          donorEmail: donation.donorEmail,
+          totalDonations: donation.amount,
+          donationCount: 1,
+          lastDonationAt: donation.createdAt,
+        });
+      }
+    }
+
+    return Array.from(donorMap.values()).sort((a, b) => {
+      const dateA = a.lastDonationAt ? new Date(a.lastDonationAt).getTime() : 0;
+      const dateB = b.lastDonationAt ? new Date(b.lastDonationAt).getTime() : 0;
+      return dateB - dateA;
+    });
+  })();
+
+  const totalDonorRecords = (users?.length || 0) + guestDonors.length;
+
   return (
     <AdminLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="font-display text-2xl font-bold" data-testid="text-admin-users-heading">Orang Tua Asuh</h1>
-            <p className="text-muted-foreground text-sm mt-1">Daftar semua orang tua asuh yang terdaftar</p>
+            <h1 className="font-display text-2xl font-bold" data-testid="text-admin-users-heading">Donatur & Orang Tua Asuh</h1>
+            <p className="text-muted-foreground text-sm mt-1">Menampilkan user terdaftar dan donatur guest dengan pembayaran berhasil</p>
           </div>
           <div className="flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-xl">
             <Users className="w-5 h-5 text-primary" />
-            <span className="font-bold text-primary" data-testid="text-total-users">{users?.length || 0}</span>
-            <span className="text-sm text-muted-foreground">Terdaftar</span>
+            <span className="font-bold text-primary" data-testid="text-total-users">{totalDonorRecords}</span>
+            <span className="text-sm text-muted-foreground">Tercatat</span>
           </div>
         </div>
 
-        {isLoading ? (
+        {isLoading || allDonationsLoading ? (
           <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
         ) : (
-          <Card className="border-0 shadow-md rounded-2xl">
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border/50">
-                      <th className="text-left p-4 font-semibold text-muted-foreground">Nama</th>
-                      <th className="text-left p-4 font-semibold text-muted-foreground">Email</th>
-                      <th className="text-left p-4 font-semibold text-muted-foreground">Telepon</th>
-                      <th className="text-left p-4 font-semibold text-muted-foreground">Total Donasi</th>
-                      <th className="text-left p-4 font-semibold text-muted-foreground">Jumlah Donasi</th>
-                      <th className="text-left p-4 font-semibold text-muted-foreground">Bergabung</th>
-                      <th className="text-left p-4 font-semibold text-muted-foreground">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users?.map((u) => (
-                      <tr key={u.id} className="border-b border-border/30 hover:bg-secondary/30" data-testid={`row-user-${u.id}`}>
-                        <td className="p-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                              <span className="text-sm font-bold text-primary">{u.fullName.charAt(0).toUpperCase()}</span>
-                            </div>
-                            <div>
-                              <p className="font-medium">{u.fullName}</p>
-                              <p className="text-xs text-muted-foreground">@{u.username}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-4 text-muted-foreground">{u.email}</td>
-                        <td className="p-4 text-muted-foreground">{u.phone || "-"}</td>
-                        <td className="p-4 font-semibold text-primary">{formatCurrency(u.totalDonations)}</td>
-                        <td className="p-4 text-center">{u.donationCount}x</td>
-                        <td className="p-4 text-muted-foreground">{formatDate(u.createdAt)}</td>
-                        <td className="p-4">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openDetail(u)}
-                            className="text-primary hover:text-primary/80 hover:bg-primary/5"
-                            data-testid={`button-view-user-${u.id}`}
-                          >
-                            <Eye className="w-4 h-4 mr-1" />
-                            Detail
-                          </Button>
-                        </td>
+          <>
+            <Card className="border-0 shadow-md rounded-2xl">
+              <CardContent className="p-0">
+                <div className="p-4 border-b border-border/50">
+                  <h2 className="font-semibold text-lg">User Terdaftar</h2>
+                  <p className="text-sm text-muted-foreground">Akun dengan role Orang Tua Asuh</p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border/50">
+                        <th className="text-left p-4 font-semibold text-muted-foreground">Nama</th>
+                        <th className="text-left p-4 font-semibold text-muted-foreground">Email</th>
+                        <th className="text-left p-4 font-semibold text-muted-foreground">Telepon</th>
+                        <th className="text-left p-4 font-semibold text-muted-foreground">Total Donasi</th>
+                        <th className="text-left p-4 font-semibold text-muted-foreground">Jumlah Donasi</th>
+                        <th className="text-left p-4 font-semibold text-muted-foreground">Bergabung</th>
+                        <th className="text-left p-4 font-semibold text-muted-foreground">Aksi</th>
                       </tr>
-                    ))}
-                    {(!users || users.length === 0) && (
-                      <tr>
-                        <td colSpan={7} className="p-8 text-center text-muted-foreground">
-                          Belum ada orang tua asuh yang terdaftar
-                        </td>
+                    </thead>
+                    <tbody>
+                      {users?.map((u) => (
+                        <tr key={u.id} className="border-b border-border/30 hover:bg-secondary/30" data-testid={`row-user-${u.id}`}>
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                <span className="text-sm font-bold text-primary">{u.fullName.charAt(0).toUpperCase()}</span>
+                              </div>
+                              <div>
+                                <p className="font-medium">{u.fullName}</p>
+                                <p className="text-xs text-muted-foreground">@{u.username}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-4 text-muted-foreground">{u.email}</td>
+                          <td className="p-4 text-muted-foreground">{u.phone || "-"}</td>
+                          <td className="p-4 font-semibold text-primary">{formatCurrency(u.totalDonations)}</td>
+                          <td className="p-4 text-center">{u.donationCount}x</td>
+                          <td className="p-4 text-muted-foreground">{formatDate(u.createdAt)}</td>
+                          <td className="p-4">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openDetail(u)}
+                              className="text-primary hover:text-primary/80 hover:bg-primary/5"
+                              data-testid={`button-view-user-${u.id}`}
+                            >
+                              <Eye className="w-4 h-4 mr-1" />
+                              Detail
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                      {(!users || users.length === 0) && (
+                        <tr>
+                          <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                            Belum ada orang tua asuh yang terdaftar
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-md rounded-2xl">
+              <CardContent className="p-0">
+                <div className="p-4 border-b border-border/50">
+                  <h2 className="font-semibold text-lg">Donatur Guest</h2>
+                  <p className="text-sm text-muted-foreground">Pembayaran berhasil dari donatur tanpa akun login</p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border/50">
+                        <th className="text-left p-4 font-semibold text-muted-foreground">Nama</th>
+                        <th className="text-left p-4 font-semibold text-muted-foreground">Email</th>
+                        <th className="text-left p-4 font-semibold text-muted-foreground">Total Donasi</th>
+                        <th className="text-left p-4 font-semibold text-muted-foreground">Jumlah Donasi</th>
+                        <th className="text-left p-4 font-semibold text-muted-foreground">Donasi Terakhir</th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+                    </thead>
+                    <tbody>
+                      {guestDonors.map((donor) => (
+                        <tr key={donor.key} className="border-b border-border/30 hover:bg-secondary/30" data-testid={`row-guest-donor-${donor.key}`}>
+                          <td className="p-4 font-medium">{donor.donorName}</td>
+                          <td className="p-4 text-muted-foreground">{donor.donorEmail || "-"}</td>
+                          <td className="p-4 font-semibold text-primary">{formatCurrency(donor.totalDonations)}</td>
+                          <td className="p-4">{donor.donationCount}x</td>
+                          <td className="p-4 text-muted-foreground">{formatDateTime(donor.lastDonationAt)}</td>
+                        </tr>
+                      ))}
+                      {guestDonors.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="p-8 text-center text-muted-foreground">
+                            Belum ada donatur guest dengan pembayaran berhasil
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </>
         )}
       </div>
 

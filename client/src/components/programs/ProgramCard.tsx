@@ -13,16 +13,25 @@ export default function ProgramCard({ program, onDonate }: ProgramCardProps) {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value);
   };
 
+  const parseImages = (jsonStr: string): string[] => {
+    try {
+      const parsed = JSON.parse(jsonStr);
+      return Array.isArray(parsed) ? parsed : (jsonStr ? [jsonStr] : []);
+    } catch {
+      return jsonStr ? [jsonStr] : [];
+    }
+  };
+
   const progressPercentage = Math.min((program.currentAmount / program.targetAmount) * 100, 100);
 
   return (
     <div className="group bg-card rounded-3xl overflow-hidden border border-border/50 shadow-lg shadow-black/5 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 flex flex-col" data-testid={`card-program-${program.id}`}>
       <Link href={`/programs/${program.id}`} className="block">
         <div className="relative h-56 overflow-hidden">
-          <img 
-            src={program.imageUrl} 
+          <img
+            src={parseImages(program.imageUrl)[0] || ""}
             alt={program.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out bg-secondary"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-80" />
           <div className="absolute bottom-4 left-4 right-4">
@@ -33,7 +42,7 @@ export default function ProgramCard({ program, onDonate }: ProgramCardProps) {
           </div>
         </div>
       </Link>
-      
+
       <div className="p-6 flex flex-col flex-1">
         <Link href={`/programs/${program.id}`} className="block">
           <h3 className="font-display font-bold text-xl text-foreground mb-2 line-clamp-2 leading-tight group-hover:text-primary transition-colors">
@@ -43,17 +52,17 @@ export default function ProgramCard({ program, onDonate }: ProgramCardProps) {
         <p className="text-muted-foreground text-sm line-clamp-2 mb-6 flex-1">
           {program.description}
         </p>
-        
+
         <div className="space-y-4 mb-6 mt-auto">
           <div className="w-full h-2.5 bg-secondary rounded-full overflow-hidden">
-            <div 
+            <div
               className="h-full bg-accent rounded-full relative"
               style={{ width: `${progressPercentage}%` }}
             >
               <div className="absolute top-0 bottom-0 left-0 right-0 bg-white/20 animate-pulse" />
             </div>
           </div>
-          
+
           <div className="flex justify-between items-end gap-2">
             <div>
               <p className="text-xs text-muted-foreground font-medium mb-1">Terkumpul</p>
@@ -65,8 +74,8 @@ export default function ProgramCard({ program, onDonate }: ProgramCardProps) {
             </div>
           </div>
         </div>
-        
-        <Button 
+
+        <Button
           onClick={(e) => {
             e.preventDefault();
             onDonate(program);

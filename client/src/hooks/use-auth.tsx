@@ -52,7 +52,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return null;
       }
     },
-    staleTime: Infinity,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnMount: "always",
     retry: false,
   });
 

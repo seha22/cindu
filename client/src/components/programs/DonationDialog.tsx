@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useEffect, useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +26,7 @@ interface DonationDialogProps {
 }
 
 const PREDEFINED_AMOUNTS = [50000, 100000, 250000, 500000];
+const SNAP_DIALOG_CLOSE_DELAY_MS = 250;
 
 export default function DonationDialog({ program, open, onOpenChange, presetAmount, user }: DonationDialogProps) {
   const { toast } = useToast();
@@ -50,6 +51,55 @@ export default function DonationDialog({ program, open, onOpenChange, presetAmou
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
 
+  const reopenDialog = () => onOpenChange(true);
+
+  const resetAndClose = () => {
+    setAmount("");
+    setDonorName(user?.fullName || "");
+    setDonorEmail(user?.email || "");
+    setMessage("");
+    onOpenChange(false);
+  };
+
+  const openSnapPayment = (snapToken: string) => {
+    // Close the local dialog first so Radix overlay/focus handling does not block Snap interactions.
+    onOpenChange(false);
+
+    window.setTimeout(() => {
+      if (!window.snap) {
+        toast({
+          title: "Pembayaran belum siap",
+          description: "Popup pembayaran gagal dimuat. Silakan coba lagi.",
+          variant: "destructive",
+        });
+        reopenDialog();
+        return;
+      }
+
+      window.snap.pay(snapToken, {
+        onSuccess: () => {
+          toast({ title: "Alhamdulillah!", description: "Pembayaran berhasil. Terima kasih atas kebaikannya." });
+          queryClient.invalidateQueries({ queryKey: ["/api/programs"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/donations"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/user/donations"] });
+          resetAndClose();
+        },
+        onPending: () => {
+          toast({ title: "Menunggu Pembayaran", description: "Silakan selesaikan pembayaran Anda." });
+          resetAndClose();
+        },
+        onError: () => {
+          toast({ title: "Pembayaran Gagal", description: "Terjadi kesalahan saat memproses pembayaran.", variant: "destructive" });
+          reopenDialog();
+        },
+        onClose: () => {
+          toast({ title: "Pembayaran Dibatalkan", description: "Anda menutup halaman pembayaran." });
+          reopenDialog();
+        },
+      });
+    }, SNAP_DIALOG_CLOSE_DELAY_MS);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!program) return;
@@ -73,26 +123,8 @@ export default function DonationDialog({ program, open, onOpenChange, presetAmou
       });
       const result = await res.json();
 
-      if (result.snapToken && window.snap) {
-        window.snap.pay(result.snapToken, {
-          onSuccess: () => {
-            toast({ title: "Alhamdulillah!", description: "Pembayaran berhasil. Terima kasih atas kebaikannya." });
-            queryClient.invalidateQueries({ queryKey: ["/api/programs"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/donations"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/user/donations"] });
-            resetAndClose();
-          },
-          onPending: () => {
-            toast({ title: "Menunggu Pembayaran", description: "Silakan selesaikan pembayaran Anda." });
-            resetAndClose();
-          },
-          onError: () => {
-            toast({ title: "Pembayaran Gagal", description: "Terjadi kesalahan saat memproses pembayaran.", variant: "destructive" });
-          },
-          onClose: () => {
-            toast({ title: "Pembayaran Dibatalkan", description: "Anda menutup halaman pembayaran." });
-          },
-        });
+      if (result.snapToken) {
+        openSnapPayment(result.snapToken);
       } else {
         toast({
           title: "Donasi Tercatat",
@@ -108,14 +140,6 @@ export default function DonationDialog({ program, open, onOpenChange, presetAmou
     } finally {
       setLoading(false);
     }
-  };
-
-  const resetAndClose = () => {
-    setAmount("");
-    setDonorName(user?.fullName || "");
-    setDonorEmail(user?.email || "");
-    setMessage("");
-    onOpenChange(false);
   };
 
   return (
