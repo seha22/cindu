@@ -203,12 +203,12 @@ export default function Home() {
                 key={`${slide.id}-${slide.imageUrl}`}
                 src={slide.imageUrl}
                 alt={slide.altText || "Hero Background"}
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${index === currentSlideIndex ? "opacity-100" : "opacity-0"}`}
+                className={`absolute inset-0 w-full h-full object-cover transition-all duration-[1500ms] ease-out ${index === currentSlideIndex ? "opacity-100 scale-105" : "opacity-0 scale-100"}`}
               />
             ))}
           </div>
-          <div className="absolute inset-0 bg-primary/90 mix-blend-multiply" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/70 via-primary/50 to-background" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-primary/30" />
 
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md text-white/90 border border-white/20 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -216,10 +216,10 @@ export default function Home() {
               <span className="text-sm font-medium tracking-wide">Bersama Membangun Harapan</span>
             </div>
 
-            <h1 className="font-display font-extrabold text-5xl md:text-6xl lg:text-7xl text-white text-balance mx-auto leading-tight mb-8 animate-in fade-in slide-in-from-bottom-6 duration-1000">
+            <h1 className="font-display font-extrabold text-5xl md:text-6xl lg:text-7xl text-white text-balance mx-auto leading-tight mb-8 animate-in fade-in slide-in-from-bottom-6 duration-1000 text-shadow-hero">
               Satu Kebaikan, <span className="text-accent relative inline-block">
                 Sejuta Senyuman
-                <div className="absolute -bottom-2 left-0 right-0 h-3 bg-accent/20 rounded-full blur-md -z-10" />
+                <div className="absolute -bottom-2 left-0 right-0 h-3 bg-accent/30 rounded-full blur-md -z-10" />
               </span>
             </h1>
 
@@ -261,21 +261,21 @@ export default function Home() {
         </section>
 
         {/* Stats Section */}
-        <section className="py-16 bg-background relative z-10 -mt-10">
+        <section className="py-8 bg-transparent relative z-10 -mt-16 lg:-mt-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {[
-                { icon: Users, label: "Donatur Tergabung", value: "125.000+" },
-                { icon: CheckCircle, label: "Penerima Manfaat", value: "85.000+" },
-                { icon: Calculator, label: "Program Sukses", value: "340+" },
+                { icon: Users, label: "Donatur Tergabung", value: "125.000+", gradient: "from-teal-500 to-emerald-500" },
+                { icon: CheckCircle, label: "Penerima Manfaat", value: "85.000+", gradient: "from-amber-500 to-orange-500" },
+                { icon: Calculator, label: "Program Sukses", value: "340+", gradient: "from-primary to-teal-600" },
               ].map((stat, i) => (
-                <div key={i} className="bg-white rounded-3xl p-8 flex items-center gap-6 shadow-xl shadow-primary/5 border border-border/50 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
-                  <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-                    <stat.icon className="w-8 h-8 text-primary" />
+                <div key={i} className="bg-white rounded-3xl p-7 flex items-center gap-5 shadow-2xl shadow-primary/10 border border-border/50 hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300">
+                  <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${stat.gradient} flex items-center justify-center shrink-0 shadow-lg`}>
+                    <stat.icon className="w-7 h-7 text-white" />
                   </div>
                   <div>
                     <h3 className="font-display font-bold text-3xl text-foreground">{stat.value}</h3>
-                    <p className="text-muted-foreground font-medium">{stat.label}</p>
+                    <p className="text-muted-foreground font-medium text-sm">{stat.label}</p>
                   </div>
                 </div>
               ))}
@@ -364,16 +364,20 @@ export default function Home() {
                 {latestArticles.map((article) => (
                   <article
                     key={article.id}
-                    className="bg-white rounded-3xl border border-border/50 shadow-lg shadow-primary/5 overflow-hidden"
+                    className="group bg-white rounded-3xl border border-border/50 shadow-lg shadow-primary/5 overflow-hidden hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
                     data-testid={`card-home-article-${article.id}`}
                   >
-                    <div className="h-56">
-                      <img src={article.imageUrl} alt={article.title} className="w-full h-full object-cover" />
+                    <div className="h-56 overflow-hidden">
+                      <img src={article.imageUrl} alt={article.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out" />
                     </div>
                     <div className="p-6">
-                      <p className="text-xs font-semibold text-primary mb-3">{article.category}</p>
-                      <h3 className="font-bold text-2xl text-foreground mb-3 line-clamp-2">{article.title}</h3>
-                      <p className="text-muted-foreground text-sm leading-relaxed line-clamp-3">{article.excerpt}</p>
+                      <p className="text-xs font-semibold text-primary mb-3 uppercase tracking-wider">{article.category}</p>
+                      <h3 className="font-bold text-2xl text-foreground mb-3 line-clamp-2 group-hover:text-primary transition-colors">{article.title}</h3>
+                      <p className="text-muted-foreground text-sm leading-relaxed line-clamp-3 mb-4">{article.excerpt}</p>
+                      <span className="text-primary font-semibold text-sm inline-flex items-center gap-1 group-hover:gap-2 transition-all">
+                        Baca selengkapnya
+                        <ArrowRight className="w-4 h-4" />
+                      </span>
                     </div>
                   </article>
                 ))}

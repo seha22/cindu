@@ -62,8 +62,8 @@ export default function Register() {
       <main className="flex-1 flex items-center justify-center px-4 pt-24 pb-12">
         <Card className="w-full max-w-md border-0 shadow-2xl rounded-2xl">
           <CardHeader className="text-center pb-2">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/20">
-              <Heart className="w-8 h-8 text-white fill-white" />
+            <div className="w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center mx-auto mb-4">
+              <img src="/logo.png" alt="Cinta Dhuafa Logo" className="w-full h-full object-contain" />
             </div>
             <CardTitle className="font-display text-2xl font-bold">Daftar Akun</CardTitle>
             <p className="text-muted-foreground text-sm mt-2">Daftar sebagai Orang Tua Asuh</p>

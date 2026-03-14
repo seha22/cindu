@@ -21,8 +21,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border/50 flex flex-col transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="h-16 flex items-center px-6 border-b border-border/50">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
-              <Heart className="w-4 h-4 text-white fill-white" />
+            <div className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center">
+              <img src="/logo.png" alt="Cinta Dhuafa Logo" className="w-full h-full object-contain" />
             </div>
             <span className="font-display font-bold text-lg text-primary">Cinta Dhuafa</span>
           </Link>

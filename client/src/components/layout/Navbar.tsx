@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { Heart, ChevronDown, Menu, X, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,11 +16,32 @@ export default function Navbar() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const { user, logout, isAdmin } = useAuth();
 
   const isAboutActive = location.startsWith("/about");
+  const isHome = location === "/";
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 50);
+    };
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const headerClass = isHome && !scrolled && !mobileOpen
+    ? "glass-header-transparent"
+    : scrolled
+      ? "glass-header-scrolled"
+      : "glass-header";
+
+  const textColor = isHome && !scrolled && !mobileOpen ? "text-white" : "text-muted-foreground";
+  const activeTextColor = isHome && !scrolled && !mobileOpen ? "text-white font-bold" : "text-primary";
+  const logoTextColor = isHome && !scrolled && !mobileOpen ? "text-white" : "text-primary";
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -48,30 +69,36 @@ export default function Navbar() {
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 glass-header">
+    <header className={`fixed top-0 left-0 right-0 z-50 ${headerClass}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform duration-300">
-              <Heart className="w-5 h-5 text-white fill-white" />
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+              <img src="/logo.png" alt="Cinta Dhuafa Logo" className="w-full h-full object-contain" />
             </div>
-            <span className="font-display font-bold text-2xl tracking-tight text-primary">
+            <span className={`font-display font-bold text-2xl tracking-tight transition-colors duration-300 ${logoTextColor}`}>
               Cinta Dhuafa
             </span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-8" data-testid="nav-desktop">
-            {mainLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`text-sm font-semibold transition-colors duration-200 hover:text-primary ${
-                  location === link.href ? "text-primary" : "text-muted-foreground"
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
+            {mainLinks.map((link) => {
+              const isActive = location === link.href;
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`relative text-sm font-semibold transition-colors duration-200 hover:text-primary py-1 ${
+                    isActive ? activeTextColor : textColor
+                  }`}
+                >
+                  {link.label}
+                  {isActive && (
+                    <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-current rounded-full animate-in fade-in zoom-in-50 duration-300" />
+                  )}
+                </Link>
+              );
+            })}
 
             <div className="relative" ref={dropdownRef}>
               <button
@@ -79,13 +106,16 @@ export default function Navbar() {
                 onKeyDown={(e) => { if (e.key === "Escape") setAboutOpen(false); }}
                 aria-expanded={aboutOpen}
                 aria-haspopup="menu"
-                className={`flex items-center gap-1 text-sm font-semibold transition-colors duration-200 hover:text-primary ${
-                  isAboutActive ? "text-primary" : "text-muted-foreground"
+                className={`flex items-center gap-1 text-sm font-semibold transition-colors duration-200 hover:text-primary relative py-1 ${
+                  isAboutActive ? activeTextColor : textColor
                 }`}
                 data-testid="button-tentang-kami"
               >
                 Tentang Kami
                 <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${aboutOpen ? "rotate-180" : ""}`} />
+                {isAboutActive && (
+                  <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-current rounded-full" />
+                )}
               </button>
 
               {aboutOpen && (
@@ -110,7 +140,7 @@ export default function Navbar() {
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-primary transition-colors"
+                  className={`flex items-center gap-2 text-sm font-semibold hover:text-primary transition-colors ${textColor}`}
                   data-testid="button-user-menu"
                 >
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -156,7 +186,7 @@ export default function Navbar() {
                   </Button>
                 </Link>
                 <Link href="/programs">
-                  <Button className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-6 shadow-lg shadow-accent/20 rounded-full transition-all hover:-translate-y-0.5" data-testid="button-donate">
+                  <Button className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-6 shadow-lg shadow-accent/30 rounded-full transition-all hover:-translate-y-0.5 hover:shadow-xl" data-testid="button-donate">
                     Mulai Donasi
                   </Button>
                 </Link>
@@ -174,7 +204,7 @@ export default function Navbar() {
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label={mobileOpen ? "Tutup menu" : "Buka menu"}
               aria-expanded={mobileOpen}
-              className="p-2 rounded-xl text-foreground hover:bg-primary/5 transition-colors"
+              className={`p-2 rounded-xl hover:bg-white/10 transition-colors ${isHome && !scrolled ? "text-white" : "text-foreground"}`}
               data-testid="button-mobile-menu"
             >
               {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}

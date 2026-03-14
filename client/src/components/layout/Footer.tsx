@@ -8,8 +8,8 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-16">
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                <Heart className="w-4 h-4 text-accent fill-accent" />
+              <div className="w-10 h-10 rounded-lg overflow-hidden bg-white flex items-center justify-center">
+                <img src="/logo.png" alt="Cinta Dhuafa Logo" className="w-full h-full object-contain" />
               </div>
               <span className="font-display font-bold text-xl">Cinta Dhuafa</span>
             </div>
@@ -47,11 +47,11 @@ export default function Footer() {
             <ul className="space-y-4 text-primary-foreground/80">
               <li className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 text-accent shrink-0 mt-0.5" />
-                <span>Jl. Kebaikan No. 123, Jakarta Selatan, Indonesia 12345</span>
+                <span>Jln. Merpati Utara Blok H1/21 Sektor 1 Bintaro, Jakarta, Indonesia</span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-accent shrink-0" />
-                <span>+62 812 3456 7890</span>
+                <span>0877-8874-3536</span>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-accent shrink-0" />
