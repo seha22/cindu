@@ -47,6 +47,8 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined>;
+  updateUserResetToken(id: number, token: string | null, expires: Date | null): Promise<void>;
+  getUserByResetToken(token: string): Promise<User | undefined>;
 
   getCmsPage(slug: string): Promise<CmsPage | undefined>;
   getCmsPages(): Promise<CmsPage[]>;
@@ -194,6 +196,17 @@ export class DatabaseStorage implements IStorage {
   async updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined> {
     const [updated] = await db.update(users).set(data).where(eq(users.id, id)).returning();
     return updated;
+  }
+
+  async updateUserResetToken(id: number, token: string | null, expires: Date | null): Promise<void> {
+    await db.update(users)
+      .set({ resetPasswordToken: token, resetPasswordExpires: expires })
+      .where(eq(users.id, id));
+  }
+
+  async getUserByResetToken(token: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.resetPasswordToken, token));
+    return user;
   }
 
   async getCmsPage(slug: string): Promise<CmsPage | undefined> {

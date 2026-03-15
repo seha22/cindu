@@ -27,14 +27,18 @@ import AdminProfile from "@/pages/admin/AdminProfile";
 import Dashboard from "@/pages/dashboard/Dashboard";
 import Profile from "@/pages/dashboard/Profile";
 import DonationHistory from "@/pages/dashboard/DonationHistory";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
 import { Loader2 } from "lucide-react";
+
+import AdminLogin from "@/pages/admin/AdminLogin";
 
 type GuardedComponent = () => JSX.Element | null;
 
 function AdminRoute({ component: Component }: { component: GuardedComponent }) {
   const { user, isLoading, isAdmin } = useAuth();
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
-  if (!user) return <Redirect to="/login" />;
+  if (!user) return <Redirect to="/admin/login" />;
   if (!isAdmin) return <Redirect to="/dashboard" />;
   return <Component />;
 }
@@ -66,7 +70,10 @@ function Router() {
       <Route path="/about/program" component={ProgramKami} />
 
       <Route path="/login">{() => <GuestRoute component={Login} />}</Route>
+      <Route path="/admin/login">{() => <GuestRoute component={AdminLogin} />}</Route>
       <Route path="/register">{() => <GuestRoute component={Register} />}</Route>
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
 
       <Route path="/admin">{() => <AdminRoute component={AdminDashboard} />}</Route>
       <Route path="/admin/programs">{() => <AdminRoute component={AdminPrograms} />}</Route>

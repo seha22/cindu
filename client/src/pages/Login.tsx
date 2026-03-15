@@ -37,8 +37,8 @@ export default function Login() {
             <div className="w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center mx-auto mb-4">
               <img src="/logo.png" alt="Cinta Dhuafa Logo" className="w-full h-full object-contain" />
             </div>
-            <CardTitle className="font-display text-2xl font-bold">Masuk ke Akun</CardTitle>
-            <p className="text-muted-foreground text-sm mt-2">Masuk untuk mengelola donasi Anda</p>
+            <CardTitle className="font-display text-2xl font-bold">Halo, Orang Tua Asuh!</CardTitle>
+            <p className="text-muted-foreground text-sm mt-2">Masuk untuk melihat perkembangan dan kebahagiaan anak asuh Anda</p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -75,6 +75,11 @@ export default function Login() {
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
+                </div>
+                <div className="flex justify-end mt-1">
+                  <Link href="/forgot-password" title="Klik untuk mereset password" className="text-xs text-primary hover:underline transition-all">
+                    Lupa password?
+                  </Link>
                 </div>
               </div>
               <Button

@@ -9,6 +9,8 @@ import { insertArticleSchema, insertProgramSchema, insertCmsPageSchema } from "@
 import multer from "multer";
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
+import { sendResetPasswordEmail } from "./lib/mail";
 import rateLimit from "express-rate-limit";
 
 const uploadsRoot = path.resolve(process.cwd(), "uploads");
@@ -352,6 +354,78 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Registration error:", err);
       return res.status(500).json({ message: "Terjadi kesalahan saat registrasi" });
+    }
+  });
+
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ message: "Email wajib diisi" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        // For security, don't reveal if user exists
+        return res.json({ message: "Jika email terdaftar, instruksi reset password akan dikirimkan" });
+      }
+
+      const token = crypto.randomBytes(32).toString("hex");
+      const expires = new Date(Date.now() + 3600000); // 1 hour
+
+      await storage.updateUserResetToken(user.id, token, expires);
+
+      const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+      const host = req.get("host");
+      const resetLink = `${protocol}://${host}/reset-password?token=${token}`;
+
+      console.log(`Reset link for ${email}: ${resetLink}`);
+      
+      try {
+        await sendResetPasswordEmail(email, resetLink);
+      } catch (mailErr) {
+        console.error("Mail error:", mailErr);
+        // Fallback: in dev, we still show the link in logs
+        if (process.env.NODE_ENV === "production") {
+          return res.status(500).json({ message: "Gagal mengirim email" });
+        }
+      }
+
+      res.json({ message: "Jika email terdaftar, instruksi reset password akan dikirimkan" });
+    } catch (err) {
+      console.error("Forgot password error:", err);
+      res.status(500).json({ message: "Terjadi kesalahan" });
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { token, password } = req.body;
+      if (!token || !password) {
+        return res.status(400).json({ message: "Token dan password wajib diisi" });
+      }
+
+      const user = await storage.getUserByResetToken(token);
+      if (!user) {
+        return res.status(400).json({ message: "Token tidak valid atau sudah kedaluwarsa" });
+      }
+
+      if (user.resetPasswordExpires && user.resetPasswordExpires < new Date()) {
+        await storage.updateUserResetToken(user.id, null, null);
+        return res.status(400).json({ message: "Token sudah kedaluwarsa" });
+      }
+
+      await storage.updateUser(user.id, {
+        password: hashPassword(password),
+      });
+
+      // Clear token after use
+      await storage.updateUserResetToken(user.id, null, null);
+
+      res.json({ message: "Password berhasil diperbarui. Silakan login kembali." });
+    } catch (err) {
+      console.error("Reset password error:", err);
+      res.status(500).json({ message: "Terjadi kesalahan" });
     }
   });
 
