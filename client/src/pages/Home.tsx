@@ -6,6 +6,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import ProgramCard from "@/components/programs/ProgramCard";
 import DonationDialog from "@/components/programs/DonationDialog";
+import CampaignSection from "@/components/home/CampaignSection";
 import { usePrograms } from "@/hooks/use-programs";
 import { useArticles } from "@/hooks/use-articles";
 import { useAuth } from "@/hooks/use-auth";
@@ -107,7 +108,7 @@ export default function Home() {
   };
 
   const featuredPrograms = programs?.slice(0, 3) || [];
-  const latestArticles: Article[] = (articles || []).slice(0, 2);
+  const latestArticles: Article[] = (articles || []).slice(0, 3);
 
   let homeVideoContent = defaultHomeVideoContent;
   if (homeVideoPage) {
@@ -341,6 +342,9 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Campaign Section */}
+        <CampaignSection />
+
         {/* Latest News Section */}
         <section className="py-24 bg-background">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -354,13 +358,13 @@ export default function Home() {
             </div>
 
             {isArticlesLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {[1, 2].map((i) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {[1, 2, 3].map((i) => (
                   <div key={i} className="bg-white rounded-3xl h-[360px] animate-pulse border border-border/50" />
                 ))}
               </div>
             ) : latestArticles.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {latestArticles.map((article) => (
                   <article
                     key={article.id}
@@ -405,28 +409,71 @@ export default function Home() {
 
         {/* Home Video Section */}
         {currentVideo ? (
-          <section className="py-24 bg-secondary/30">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-10 items-center">
-                <div className="max-w-xl">
-                  <p className="text-sm font-semibold uppercase tracking-[0.25em] text-primary/70 mb-4">Media Visual</p>
-                  <h2 className="font-display font-bold text-4xl md:text-5xl text-foreground mb-6">
+          <section className="py-24 relative overflow-hidden bg-slate-900 text-white">
+            {/* Background elements */}
+            <div className="absolute top-0 right-0 p-32 opacity-10 blur-[120px] bg-primary rounded-full w-96 h-96 mix-blend-screen" />
+            <div className="absolute bottom-0 left-0 p-32 opacity-20 blur-[130px] bg-sky-500 rounded-full w-96 h-96 mix-blend-screen" />
+            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay" />
+
+            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                <div className="max-w-xl order-2 lg:order-1">
+                  <div className="inline-block px-4 py-1.5 rounded-full border border-primary/30 bg-primary/10 backdrop-blur-md mb-6 animate-in fade-in slide-in-from-bottom-2">
+                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Media Visual</p>
+                  </div>
+                  <h2 className="font-display font-bold text-4xl md:text-5xl lg:text-6xl text-white mb-6 leading-[1.15]">
                     {homeVideoContent.heading}
                   </h2>
-                  <p className="text-lg text-muted-foreground leading-relaxed mb-6">
+                  <p className="text-lg text-slate-300 leading-relaxed mb-10">
                     {homeVideoContent.description}
                   </p>
-                  {currentVideo.title ? (
-                    <div className="rounded-2xl border border-border/60 bg-white/80 backdrop-blur px-5 py-4 shadow-lg shadow-primary/5">
-                      <p className="text-sm text-muted-foreground mb-1">Sedang diputar</p>
-                      <h3 className="font-semibold text-lg text-foreground">{currentVideo.title}</h3>
+                  
+                  {homeVideos.length > 1 ? (
+                    <div className="flex items-center gap-6">
+                      <div className="flex items-center gap-3">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="icon" 
+                          className="rounded-full w-12 h-12 border-slate-700 bg-slate-800/50 hover:bg-white hover:text-black transition-all hover:scale-105" 
+                          onClick={showPreviousVideo} 
+                          data-testid="button-home-video-prev"
+                        >
+                          <ArrowLeft className="w-5 h-5" />
+                        </Button>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="icon" 
+                          className="rounded-full w-12 h-12 border-slate-700 bg-slate-800/50 hover:bg-white hover:text-black transition-all hover:scale-105" 
+                          onClick={showNextVideo} 
+                          data-testid="button-home-video-next"
+                        >
+                          <ArrowRight className="w-5 h-5" />
+                        </Button>
+                      </div>
+
+                      <div className="h-10 w-px bg-slate-700" />
+
+                      <div className="flex items-center gap-3" data-testid="home-video-indicators">
+                        {homeVideos.map((video, index) => (
+                          <button
+                            key={`${video.youtubeId}-${index}`}
+                            type="button"
+                            onClick={() => setCurrentVideoIndex(index)}
+                            aria-label={`Tampilkan video ${index + 1}`}
+                            className={`h-2 transition-all rounded-full ${index === currentVideoIndex ? "w-8 bg-primary shadow-[0_0_10px_rgba(255,255,255,0.5)]" : "w-2 bg-slate-600 hover:bg-slate-400"}`}
+                          />
+                        ))}
+                      </div>
                     </div>
                   ) : null}
                 </div>
 
-                <div className="space-y-4">
-                  <div className="rounded-[2rem] overflow-hidden border border-border/50 bg-black shadow-2xl shadow-primary/10">
-                    <div className="aspect-video">
+                <div className="order-1 lg:order-2 space-y-6">
+                  {/* Glassmorphic player container */}
+                  <div className="relative group rounded-[2.5rem] overflow-hidden p-2 bg-white/5 border border-white/10 backdrop-blur-2xl shadow-2xl hover:bg-white/10 hover:border-white/20 transition-all duration-500 hover:shadow-[0_0_50px_rgba(30,64,175,0.3)]">
+                    <div className="aspect-video rounded-[2rem] overflow-hidden bg-black relative z-10">
                       <iframe
                         src={`https://www.youtube-nocookie.com/embed/${currentVideo.youtubeId}`}
                         title={currentVideo.title || homeVideoContent.heading}
@@ -439,27 +486,14 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {homeVideos.length > 1 ? (
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                      <div className="flex items-center gap-2">
-                        <Button type="button" variant="outline" size="icon" className="rounded-full" onClick={showPreviousVideo} data-testid="button-home-video-prev">
-                          <ArrowLeft className="w-4 h-4" />
-                        </Button>
-                        <Button type="button" variant="outline" size="icon" className="rounded-full" onClick={showNextVideo} data-testid="button-home-video-next">
-                          <ArrowRight className="w-4 h-4" />
-                        </Button>
+                  {currentVideo.title ? (
+                    <div className="ml-4 flex items-center gap-4">
+                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                        <div className="w-2.5 h-2.5 bg-primary rounded-full animate-pulse" />
                       </div>
-
-                      <div className="flex items-center gap-2 flex-wrap" data-testid="home-video-indicators">
-                        {homeVideos.map((video, index) => (
-                          <button
-                            key={`${video.youtubeId}-${index}`}
-                            type="button"
-                            onClick={() => setCurrentVideoIndex(index)}
-                            aria-label={`Tampilkan video ${index + 1}`}
-                            className={`h-2.5 rounded-full transition-all ${index === currentVideoIndex ? "w-8 bg-primary" : "w-2.5 bg-primary/30 hover:bg-primary/50"}`}
-                          />
-                        ))}
+                      <div>
+                        <p className="text-xs text-slate-400 mb-0.5">Sedang diputar</p>
+                        <h3 className="font-semibold text-white/90">{currentVideo.title}</h3>
                       </div>
                     </div>
                   ) : null}

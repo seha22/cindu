@@ -3,12 +3,13 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import passport from "passport";
-import { setupAuth, requireAuth, requireAdmin, hashPassword } from "./auth";
+import { setupAuth, requireAuth, requireAdmin, hashPassword, comparePassword } from "./auth";
 import { createSnapTransaction, getClientKey, verifySignatureKey } from "./midtrans";
 import { insertArticleSchema, insertProgramSchema, insertCmsPageSchema } from "@shared/schema";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
+import rateLimit from "express-rate-limit";
 
 const uploadsRoot = path.resolve(process.cwd(), "uploads");
 
@@ -312,7 +313,15 @@ export async function registerRoutes(
 
   setupAuth(app);
 
-  app.post("/api/auth/register", async (req, res) => {
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    message: { message: "Terlalu banyak percobaan, silakan coba lagi setelah 15 menit" },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  app.post("/api/auth/register", authLimiter, async (req, res) => {
     try {
       const { username, email, password, fullName, phone, address } = req.body;
       if (!username || !email || !password || !fullName) {
@@ -346,7 +355,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/auth/login", (req, res, next) => {
+  app.post("/api/auth/login", authLimiter, (req, res, next) => {
     passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) return res.status(500).json({ message: "Terjadi kesalahan" });
       if (!user) return res.status(401).json({ message: info?.message || "Login gagal" });
@@ -499,7 +508,7 @@ export async function registerRoutes(
       if (!order_id) return res.status(400).json({ message: "Invalid notification" });
 
       if (signature_key && status_code && gross_amount) {
-        const isValid = verifySignatureKey(order_id, status_code, gross_amount, signature_key);
+        const isValid = await verifySignatureKey(order_id, status_code, gross_amount, signature_key);
         if (!isValid) {
           console.error("Invalid Midtrans signature for order:", order_id);
           return res.status(403).json({ message: "Invalid signature" });
@@ -739,8 +748,34 @@ export async function registerRoutes(
     res.json(userWithoutPassword);
   });
 
-  app.get("/api/midtrans/client-key", (_req, res) => {
-    res.json({ clientKey: getClientKey() });
+  app.put("/api/user/password", requireAuth, async (req, res) => {
+    try {
+      const { oldPassword, newPassword } = req.body;
+      if (!oldPassword || !newPassword) {
+        return res.status(400).json({ message: "Password lama dan baru wajib diisi" });
+      }
+
+      const userId = (req.user as any).id;
+      const user = await storage.getUserById(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      if (!comparePassword(oldPassword, user.password)) {
+        return res.status(400).json({ message: "Password lama salah" });
+      }
+
+      await storage.updateUser(user.id, {
+        password: hashPassword(newPassword),
+      });
+
+      res.json({ message: "Password berhasil diubah" });
+    } catch (err) {
+      console.error("Change password error:", err);
+      res.status(500).json({ message: "Gagal mengubah password" });
+    }
+  });
+
+  app.get("/api/midtrans/client-key", async (_req, res) => {
+    res.json({ clientKey: await getClientKey() });
   });
 
   app.get("/api/admin/stats", requireAdmin, async (_req, res) => {

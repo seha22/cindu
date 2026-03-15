@@ -31,17 +31,70 @@ const defaultHomeVideoForm: HomeVideoForm = {
 };
 
 const defaultHomeVideoContent = JSON.stringify(defaultHomeVideoForm, null, 2);
-
 const slugLabels: Record<string, string> = {
   sejarah: "Sejarah",
   "visi-misi": "Visi & Misi",
   "struktur-organisasi": "Struktur Organisasi",
   program: "Program Kami",
   "home-video": "Video Homepage",
+  "campaign-section": "Section Kampanye Home",
 };
+
+type CampaignForm = {
+  topText: string;
+  heading: string;
+  description: string;
+  listItems: string[];
+  buttonText: string;
+  buttonLink: string;
+  statValue: string;
+  statLabel: string;
+  imageUrl: string;
+  imagePath?: string | null;
+};
+
+const defaultCampaignForm: CampaignForm = {
+  topText: "WELCOME TO CINTA DHUAFA",
+  heading: "Membantu Sesama Membuat Dunia Menjadi Lebih Baik",
+  description: "Kami berkomitmen untuk menjadi jembatan kebaikan bagi Anda yang ingin berbagi. Setiap kontribusi Anda memberikan harapan baru bagi mereka yang membutuhkan.",
+  listItems: [
+    "Transparansi dana donasi 100%",
+    "Penyaluran bantuan tepat sasaran",
+    "Program berkelanjutan & berdampak",
+    "Laporan kegiatan rutin & terbuka"
+  ],
+  buttonText: "Jelajahi Program",
+  buttonLink: "/programs",
+  statValue: "125K+",
+  statLabel: "Jiwa telah terbantu melalui kebaikan Anda",
+  imageUrl: "/volunteer_box_donation.png"
+};
+
+const defaultCampaignContent = JSON.stringify(defaultCampaignForm, null, 2);
+
+function parseCampaignContent(content: string): CampaignForm {
+  try {
+    const parsed = JSON.parse(content);
+    return {
+      topText: parsed.topText || defaultCampaignForm.topText,
+      heading: parsed.heading || defaultCampaignForm.heading,
+      description: parsed.description || defaultCampaignForm.description,
+      listItems: Array.isArray(parsed.listItems) ? parsed.listItems : defaultCampaignForm.listItems,
+      buttonText: parsed.buttonText || defaultCampaignForm.buttonText,
+      buttonLink: parsed.buttonLink || defaultCampaignForm.buttonLink,
+      statValue: parsed.statValue || defaultCampaignForm.statValue,
+      statLabel: parsed.statLabel || defaultCampaignForm.statLabel,
+      imageUrl: parsed.imageUrl || defaultCampaignForm.imageUrl,
+      imagePath: parsed.imagePath || null
+    };
+  } catch {
+    return defaultCampaignForm;
+  }
+}
 
 const requiredCmsPages = [
   { slug: "home-video", title: "Video Homepage", content: defaultHomeVideoContent },
+  { slug: "campaign-section", title: "Section Kampanye Home", content: defaultCampaignContent },
 ];
 
 function createEmptyVideoItem(): HomeVideoItem {
@@ -221,7 +274,9 @@ export default function AdminCms() {
   const [sejarahForm, setSejarahForm] = useState<SejarahForm>(defaultSejarahForm);
   const [visiMisiForm, setVisiMisiForm] = useState<VisiMisiForm>(defaultVisiMisiForm);
   const [programForm, setProgramForm] = useState<ProgramForm>(defaultProgramForm);
+  const [campaignForm, setCampaignForm] = useState<CampaignForm>(defaultCampaignForm);
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+  const [uploadingCampaignImg, setUploadingCampaignImg] = useState(false);
 
   const { data: pages, isLoading } = useQuery<CmsPage[]>({ queryKey: ["/api/cms"] });
   const cmsPages = [
@@ -259,6 +314,7 @@ export default function AdminCms() {
     setSejarahForm(page.slug === "sejarah" ? parseSejarahContent(page.content) : defaultSejarahForm);
     setVisiMisiForm(page.slug === "visi-misi" ? parseVisiMisiContent(page.content) : defaultVisiMisiForm);
     setProgramForm(page.slug === "program" ? parseProgramContent(page.content) : defaultProgramForm);
+    setCampaignForm(page.slug === "campaign-section" ? parseCampaignContent(page.content) : defaultCampaignForm);
     setDialogOpen(true);
   };
 
@@ -286,12 +342,17 @@ export default function AdminCms() {
               title: form.title,
               content: JSON.stringify(visiMisiForm, null, 2),
             }
-            : editing.slug === "program"
-              ? {
-                title: form.title,
-                content: JSON.stringify(programForm, null, 2),
-              }
-              : form;
+              : editing.slug === "program"
+                ? {
+                  title: form.title,
+                  content: JSON.stringify(programForm, null, 2),
+                }
+                : editing.slug === "campaign-section"
+                  ? {
+                    title: form.title,
+                    content: JSON.stringify(campaignForm, null, 2),
+                  }
+                  : form;
 
     updateMutation.mutate({ slug: editing.slug, data: payload });
   };
@@ -301,6 +362,7 @@ export default function AdminCms() {
   const isSejarah = editing?.slug === "sejarah";
   const isVisiMisi = editing?.slug === "visi-misi";
   const isProgram = editing?.slug === "program";
+  const isCampaign = editing?.slug === "campaign-section";
 
   // Helpers for VisiMisi
   const addVisiMisiMisi = () => {
@@ -984,6 +1046,101 @@ export default function AdminCms() {
                   ))}
                 </div>
               </>
+            ) : isCampaign ? (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Teks Atas (Small)</Label>
+                    <Input value={campaignForm.topText} onChange={(e) => setCampaignForm({ ...campaignForm, topText: e.target.value })} required className="rounded-xl" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Heading Utama</Label>
+                    <Input value={campaignForm.heading} onChange={(e) => setCampaignForm({ ...campaignForm, heading: e.target.value })} required className="rounded-xl" />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Deskripsi Panjang</Label>
+                  <Textarea value={campaignForm.description} onChange={(e) => setCampaignForm({ ...campaignForm, description: e.target.value })} required className="rounded-xl min-h-[100px]" />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Teks Tombol</Label>
+                    <Input value={campaignForm.buttonText} onChange={(e) => setCampaignForm({ ...campaignForm, buttonText: e.target.value })} required className="rounded-xl" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Link Tombol</Label>
+                    <Input value={campaignForm.buttonLink} onChange={(e) => setCampaignForm({ ...campaignForm, buttonLink: e.target.value })} required className="rounded-xl" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Nilai Statistik (e.g. 280K)</Label>
+                    <Input value={campaignForm.statValue} onChange={(e) => setCampaignForm({ ...campaignForm, statValue: e.target.value })} required className="rounded-xl" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Label Statistik</Label>
+                    <Input value={campaignForm.statLabel} onChange={(e) => setCampaignForm({ ...campaignForm, statLabel: e.target.value })} required className="rounded-xl" />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Daftar Poin (List Items)</Label>
+                    <Button type="button" variant="outline" size="sm" className="rounded-lg h-8" onClick={() => setCampaignForm(c => ({ ...c, listItems: [...c.listItems, ""] }))}>
+                      <Plus className="w-3.5 h-3.5 mr-1" /> Tambah Poin
+                    </Button>
+                  </div>
+                  {campaignForm.listItems.map((item, idx) => (
+                    <div key={idx} className="flex gap-2">
+                      <Input value={item} onChange={(e) => setCampaignForm(c => ({ ...c, listItems: c.listItems.map((li, i) => i === idx ? e.target.value : li) }))} className="rounded-xl flex-1" />
+                      <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => setCampaignForm(c => ({ ...c, listItems: c.listItems.filter((_, i) => i !== idx) }))}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-3 border-t pt-4">
+                  <Label>Gambar Kampanye</Label>
+                  <div className="flex items-center gap-4">
+                    <div className="w-32 h-32 rounded-2xl bg-muted overflow-hidden border border-border/50">
+                      {campaignForm.imageUrl ? (
+                        <img src={campaignForm.imageUrl} alt="campaign" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground/30"><ImageIcon className="w-10 h-10" /></div>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Input type="file" id="campaign-img-upload" className="hidden" accept="image/*" onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          setUploadingCampaignImg(true);
+                          const fd = new FormData();
+                          fd.append("file", file);
+                          const res = await fetch("/api/admin/uploads/hero", { method: "POST", body: fd, credentials: "include" });
+                          if (!res.ok) throw new Error("Upload failed");
+                          const data = await res.json();
+                          setCampaignForm(c => ({ ...c, imageUrl: data.imageUrl, imagePath: data.imagePath }));
+                          toast({ title: "Gambar berhasil diunggah" });
+                        } catch (err: any) {
+                          toast({ title: "Gagal upload", description: err.message, variant: "destructive" });
+                        } finally {
+                          setUploadingCampaignImg(false);
+                        }
+                      }} />
+                      <Button type="button" variant="outline" className="rounded-xl" onClick={() => document.getElementById("campaign-img-upload")?.click()} disabled={uploadingCampaignImg}>
+                        {uploadingCampaignImg ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ImageIcon className="w-4 h-4 mr-2" />}
+                        Upload Gambar
+                      </Button>
+                      <p className="text-[10px] text-muted-foreground italic">Disarankan gambar dengan background transparan (PNG).</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             ) : (
               <div className="space-y-2">
                 <Label>Konten (JSON)</Label>

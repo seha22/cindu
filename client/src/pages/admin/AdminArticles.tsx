@@ -17,8 +17,18 @@ export default function AdminArticles() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Article | null>(null);
   const [form, setForm] = useState({
-    title: "", excerpt: "", content: "", imageUrl: "", author: "", category: "",
+    title: "", excerpt: "", content: "", imageUrl: "[]", author: "", category: "",
   });
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const parseImages = (jsonStr: string): string[] => {
+    try {
+      const parsed = JSON.parse(jsonStr);
+      return Array.isArray(parsed) ? parsed : (jsonStr ? [jsonStr] : []);
+    } catch {
+      return jsonStr ? [jsonStr] : [];
+    }
+  };
 
   const { data: articles, isLoading } = useQuery<Article[]>({ queryKey: ["/api/articles"] });
 
@@ -40,14 +50,60 @@ export default function AdminArticles() {
     onError: (err: Error) => toast({ title: "Gagal", description: err.message, variant: "destructive" }),
   });
 
-  const closeDialog = () => { setDialogOpen(false); setEditing(null); setForm({ title: "", excerpt: "", content: "", imageUrl: "", author: "", category: "" }); };
+  const closeDialog = () => { setDialogOpen(false); setEditing(null); setForm({ title: "", excerpt: "", content: "", imageUrl: "[]", author: "", category: "" }); };
 
-  const openCreate = () => { setEditing(null); setForm({ title: "", excerpt: "", content: "", imageUrl: "", author: "", category: "" }); setDialogOpen(true); };
+  const openCreate = () => { setEditing(null); setForm({ title: "", excerpt: "", content: "", imageUrl: "[]", author: "", category: "" }); setDialogOpen(true); };
 
   const openEdit = (a: Article) => {
     setEditing(a);
-    setForm({ title: a.title, excerpt: a.excerpt, content: a.content, imageUrl: a.imageUrl, author: a.author, category: a.category });
+    setForm({ title: a.title, excerpt: a.excerpt, content: a.content, imageUrl: a.imageUrl || "[]", author: a.author, category: a.category });
     setDialogOpen(true);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return;
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      Array.from(e.target.files).forEach(f => formData.append("files", f));
+      const res = await fetch("/api/admin/uploads/programs", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Upload gagal");
+      }
+      const data = await res.json();
+      const newUrls = data.imageUrls;
+
+      let existing: string[] = [];
+      try {
+        const parsed = JSON.parse(form.imageUrl || "[]");
+        existing = Array.isArray(parsed) ? parsed : [form.imageUrl];
+      } catch {
+        existing = form.imageUrl ? [form.imageUrl] : [];
+      }
+
+      setForm({ ...form, imageUrl: JSON.stringify([...existing, ...newUrls]) });
+      toast({ title: "Gambar berhasil diunggah" });
+    } catch (err: any) {
+      toast({ title: "Gagal", description: err.message, variant: "destructive" });
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const removeImage = (index: number) => {
+    try {
+      const parsed = JSON.parse(form.imageUrl || "[]");
+      if (Array.isArray(parsed)) {
+        parsed.splice(index, 1);
+        setForm({ ...form, imageUrl: JSON.stringify(parsed) });
+      }
+    } catch {
+      setForm({ ...form, imageUrl: "[]" });
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -81,7 +137,7 @@ export default function AdminArticles() {
             {articles?.map((a) => (
               <Card key={a.id} className="border-0 shadow-md rounded-2xl" data-testid={`card-article-${a.id}`}>
                 <CardContent className="p-4 flex gap-4 items-start">
-                  <img src={a.imageUrl} alt={a.title} className="w-24 h-24 rounded-xl object-cover flex-shrink-0" />
+                  <img src={parseImages(a.imageUrl)[0] || ""} alt={a.title} className="w-24 h-24 rounded-xl object-cover flex-shrink-0 bg-secondary" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary">{a.category}</span>
@@ -133,9 +189,36 @@ export default function AdminArticles() {
                 <Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} required className="rounded-xl" data-testid="input-article-category" />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>URL Gambar</Label>
-              <Input value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} required className="rounded-xl" data-testid="input-article-image" />
+            <div className="space-y-4">
+              <Label>Upload Gambar</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  disabled={uploadingImage}
+                  className="rounded-xl w-full"
+                  data-testid="input-article-image-upload"
+                />
+                {uploadingImage && <div className="flex items-center"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>}
+              </div>
+              {form.imageUrl && form.imageUrl !== "[]" && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {parseImages(form.imageUrl).map((url, i) => (
+                    <div key={i} className="relative w-20 h-20 group">
+                      <img src={url} alt={`Preview ${i}`} className="w-full h-full object-cover rounded-lg border border-border" />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(i)}
+                        className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <Button type="submit" disabled={isPending} className="w-full rounded-xl" data-testid="button-submit-article">
               {isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}

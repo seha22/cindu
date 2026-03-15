@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import DashboardLayout from "@/components/layout/DashboardLayout";
+import AdminLayout from "@/components/layout/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, User, KeyRound } from "lucide-react";
 
-export default function Profile() {
+export default function AdminProfile() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [form, setForm] = useState({
@@ -68,10 +68,10 @@ export default function Profile() {
   };
 
   return (
-    <DashboardLayout>
+    <AdminLayout>
       <div className="space-y-6 max-w-2xl">
         <div>
-          <h1 className="font-display text-2xl font-bold">Profil Saya</h1>
+          <h1 className="font-display text-2xl font-bold">Profil Admin</h1>
           <p className="text-muted-foreground text-sm mt-1">Kelola informasi akun Anda</p>
         </div>
 
@@ -208,6 +208,6 @@ export default function Profile() {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
+    </AdminLayout>
   );
 }

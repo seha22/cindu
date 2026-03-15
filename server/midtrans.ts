@@ -1,33 +1,27 @@
 import midtransClient from "midtrans-client";
 import crypto from "crypto";
 
-let snap: any = null;
-let coreApi: any = null;
+import { storage } from "./storage";
 
-function isMidtransProduction() {
-  return process.env.MIDTRANS_IS_PRODUCTION === "true";
-}
-
-function getSnap() {
-  if (!snap) {
-    snap = new midtransClient.Snap({
-      isProduction: isMidtransProduction(),
-      serverKey: process.env.MIDTRANS_SERVER_KEY || "",
-      clientKey: process.env.MIDTRANS_CLIENT_KEY || "",
-    });
+async function getMidtransConfig() {
+  const page = await storage.getCmsPage("settings-midtrans");
+  if (page) {
+    try {
+      const config = JSON.parse(page.content);
+      return {
+        isProduction: config.mode === "production",
+        serverKey: config.serverKey || process.env.MIDTRANS_SERVER_KEY || "",
+        clientKey: config.clientKey || process.env.MIDTRANS_CLIENT_KEY || "",
+      };
+    } catch (e) {
+      console.error("Failed to parse settings-midtrans", e);
+    }
   }
-  return snap;
-}
-
-function getCoreApi() {
-  if (!coreApi) {
-    coreApi = new midtransClient.CoreApi({
-      isProduction: isMidtransProduction(),
-      serverKey: process.env.MIDTRANS_SERVER_KEY || "",
-      clientKey: process.env.MIDTRANS_CLIENT_KEY || "",
-    });
-  }
-  return coreApi;
+  return {
+    isProduction: process.env.MIDTRANS_IS_PRODUCTION === "true",
+    serverKey: process.env.MIDTRANS_SERVER_KEY || "",
+    clientKey: process.env.MIDTRANS_CLIENT_KEY || "",
+  };
 }
 
 export async function createSnapTransaction(params: {
@@ -37,7 +31,8 @@ export async function createSnapTransaction(params: {
   donorEmail?: string;
   programTitle: string;
 }) {
-  const snapInstance = getSnap();
+  const config = await getMidtransConfig();
+  const snapInstance = new midtransClient.Snap(config);
 
   const parameter = {
     transaction_details: {
@@ -65,23 +60,26 @@ export async function createSnapTransaction(params: {
   };
 }
 
-export function getClientKey() {
-  return process.env.MIDTRANS_CLIENT_KEY || "";
+export async function getClientKey() {
+  const config = await getMidtransConfig();
+  return config.clientKey;
 }
 
-export function verifySignatureKey(
+export async function verifySignatureKey(
   orderId: string,
   statusCode: string,
   grossAmount: string,
   signatureKey: string
-): boolean {
-  const serverKey = process.env.MIDTRANS_SERVER_KEY || "";
+): Promise<boolean> {
+  const config = await getMidtransConfig();
+  const serverKey = config.serverKey;
   const payload = orderId + statusCode + grossAmount + serverKey;
   const expectedSignature = crypto.createHash("sha512").update(payload).digest("hex");
   return expectedSignature === signatureKey;
 }
 
 export async function getTransactionStatus(orderId: string) {
-  const core = getCoreApi();
+  const config = await getMidtransConfig();
+  const core = new midtransClient.CoreApi(config);
   return await core.transaction.status(orderId);
 }

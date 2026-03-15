@@ -1,4 +1,4 @@
-import { Heart, Mail, MapPin, Phone } from "lucide-react";
+import { Heart, Mail, MapPin, Phone, Instagram, Facebook, Twitter } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Footer() {
@@ -16,6 +16,17 @@ export default function Footer() {
             <p className="text-primary-foreground/80 leading-relaxed max-w-sm">
               Yayasan Cinta Dhuafa berdedikasi untuk membantu masyarakat yang membutuhkan melalui program-program amal berkelanjutan dan terpercaya.
             </p>
+            <div className="flex items-center gap-4 pt-4">
+              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-accent hover:text-white transition-all">
+                <Instagram className="w-5 h-5" />
+              </a>
+              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-accent hover:text-white transition-all">
+                <Facebook className="w-5 h-5" />
+              </a>
+              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-accent hover:text-white transition-all">
+                <Twitter className="w-5 h-5" />
+              </a>
+            </div>
           </div>
 
           <div>
