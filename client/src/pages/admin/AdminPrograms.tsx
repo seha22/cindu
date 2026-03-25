@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import AdminLayout from "@/components/layout/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,13 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import type { Program } from "@shared/schema";
+import ReactQuill from "react-quill-new";
+import "react-quill-new/dist/quill.snow.css";
 
 export default function AdminPrograms() {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const quillRef = useRef<ReactQuill>(null);
   const [editingProgram, setEditingProgram] = useState<Program | null>(null);
   const [form, setForm] = useState({
     title: "", description: "", content: "", targetAmount: "", imageUrl: "[]",
@@ -129,6 +132,57 @@ export default function AdminPrograms() {
     }
   };
 
+  const imageHandler = useCallback(() => {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/*');
+    input.click();
+
+    input.onchange = async () => {
+      const file = input.files ? input.files[0] : null;
+      if (!file) return;
+
+      toast({ title: "Mengunggah gambar konten...", duration: 5000 });
+      const formData = new FormData();
+      formData.append('files', file);
+
+      try {
+        const res = await fetch("/api/admin/uploads/programs", {
+          method: "POST",
+          body: formData,
+        });
+        if (!res.ok) throw new Error("Upload gagal");
+        const data = await res.json();
+        const url = data.imageUrls[0];
+
+        const quill = quillRef.current?.getEditor();
+        if (quill) {
+          const range = quill.getSelection(true);
+          quill.insertEmbed(range.index, 'image', url);
+          quill.setSelection(range.index + 1, 0);
+        }
+        toast({ title: "Gambar konten berhasil diunggah" });
+      } catch (err: any) {
+        toast({ title: "Gagal mengunggah gambar konten", description: err.message, variant: "destructive" });
+      }
+    };
+  }, [toast]);
+
+  const modules = useMemo(() => ({
+    toolbar: {
+      container: [
+        [{ 'header': [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+        ['blockquote', 'image'],
+        ['clean']
+      ],
+      handlers: {
+        image: imageHandler
+      }
+    }
+  }), [imageHandler]);
+
   const removeImage = (index: number) => {
     try {
       const parsed = JSON.parse(form.imageUrl || "[]");
@@ -210,7 +264,7 @@ export default function AdminPrograms() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] rounded-2xl">
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto rounded-2xl p-6">
           <DialogHeader>
             <DialogTitle>{editingProgram ? "Edit Program" : "Tambah Program"}</DialogTitle>
           </DialogHeader>
@@ -225,7 +279,17 @@ export default function AdminPrograms() {
             </div>
             <div className="space-y-2">
               <Label>Konten Detail</Label>
-              <Textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} className="rounded-xl min-h-[120px]" data-testid="input-program-content" />
+              <div className="bg-white rounded-xl overflow-hidden border border-input">
+                <ReactQuill
+                  theme="snow"
+                  ref={quillRef}
+                  value={form.content}
+                  onChange={(val) => setForm({ ...form, content: val })}
+                  modules={modules}
+                  className="rounded-b-xl"
+                  placeholder="Tuliskan detail program, sisipkan gambar, atau ayat Al-Quran..."
+                />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

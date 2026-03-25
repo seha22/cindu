@@ -66,6 +66,7 @@ export default function Navbar() {
     { href: "/", label: "Beranda" },
     { href: "/programs", label: "Program Amal" },
     { href: "/articles", label: "Artikel" },
+    { href: "/galeri", label: "Galeri" },
   ];
 
   return (

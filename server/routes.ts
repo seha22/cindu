@@ -5,12 +5,10 @@ import { z } from "zod";
 import passport from "passport";
 import { setupAuth, requireAuth, requireAdmin, hashPassword, comparePassword } from "./auth";
 import { createSnapTransaction, getClientKey, verifySignatureKey } from "./midtrans";
-import { insertArticleSchema, insertProgramSchema, insertCmsPageSchema } from "@shared/schema";
+import { insertArticleSchema, insertProgramSchema, insertCmsPageSchema, insertFosterChildSchema, insertGallerySchema, insertExpenseSchema } from "@shared/schema";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
-import crypto from "crypto";
-import { sendResetPasswordEmail } from "./lib/mail";
 import rateLimit from "express-rate-limit";
 
 const uploadsRoot = path.resolve(process.cwd(), "uploads");
@@ -67,8 +65,56 @@ const heroUpload = multer({
   },
 });
 
-function toPublicUploadPath(fileName: string) {
-  return `/uploads/hero/${fileName}`;
+const childrenUploadsDir = path.join(uploadsRoot, "children");
+if (!fs.existsSync(childrenUploadsDir)) {
+  fs.mkdirSync(childrenUploadsDir, { recursive: true });
+}
+
+const childrenUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, childrenUploadsDir),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || "").toLowerCase() || ".jpg";
+      const safeExt = [".jpg", ".jpeg", ".png", ".webp"].includes(ext) ? ext : ".jpg";
+      cb(null, `child-${Date.now()}-${Math.random().toString(36).slice(2, 10)}${safeExt}`);
+    },
+  }),
+  limits: { fileSize: 3 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!allowedHeroMimeTypes.has(file.mimetype)) {
+      cb(new Error("Format file tidak didukung. Gunakan JPG, PNG, atau WEBP."));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+const galleriesUploadsDir = path.join(uploadsRoot, "galleries");
+if (!fs.existsSync(galleriesUploadsDir)) {
+  fs.mkdirSync(galleriesUploadsDir, { recursive: true });
+}
+
+const galleriesUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, galleriesUploadsDir),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || "").toLowerCase() || ".jpg";
+      const safeExt = [".jpg", ".jpeg", ".png", ".webp"].includes(ext) ? ext : ".jpg";
+      cb(null, `gallery-${Date.now()}-${Math.random().toString(36).slice(2, 10)}${safeExt}`);
+    },
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!allowedHeroMimeTypes.has(file.mimetype)) {
+      cb(new Error("Format file tidak didukung. Gunakan JPG, PNG, atau WEBP."));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+function toPublicUploadPath(fileName: string, type: "hero" | "children" | "galleries" = "hero") {
+  return `/uploads/${type}/${fileName}`;
 }
 
 function toAbsoluteUploadPath(publicPath: string) {
@@ -315,6 +361,203 @@ export async function registerRoutes(
 
   setupAuth(app);
 
+
+  // Foster Children Admin Routes
+  app.get("/api/admin/foster-children", requireAdmin, async (_req, res) => {
+    const children = await storage.getFosterChildren();
+    res.json(children);
+  });
+
+  app.post("/api/admin/uploads/child", requireAdmin, (req, res) => {
+    childrenUpload.single("file")(req, res, (err: any) => {
+      if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({ message: "Ukuran file maksimal 3MB" });
+      }
+      if (err) return res.status(400).json({ message: err.message || "Upload gagal" });
+      if (!req.file) return res.status(400).json({ message: "File wajib diunggah" });
+
+      const imagePath = toPublicUploadPath(req.file.filename, "children");
+      return res.status(201).json({ imageUrl: imagePath });
+    });
+  });
+
+  app.post("/api/admin/foster-children", requireAdmin, async (req, res) => {
+    try {
+      const payload = insertFosterChildSchema.parse(req.body);
+      const child = await storage.createFosterChild(payload);
+      res.status(201).json(child);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join(".") });
+      }
+      console.error("Create foster child error:", err);
+      res.status(500).json({ message: "Gagal menambahkan anak asuh" });
+    }
+  });
+
+  app.put("/api/admin/foster-children/:id", requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: "ID tidak valid" });
+
+    try {
+      const { fullName, birthPlace, birthDate, gender, educationLevel, schoolName, grade, parentName, status, address, joinDate, isActive, bio, imageUrl } = req.body;
+      const data: Record<string, any> = {};
+      if (fullName !== undefined) data.fullName = fullName;
+      if (birthPlace !== undefined) data.birthPlace = birthPlace || null;
+      if (birthDate !== undefined) data.birthDate = birthDate ? new Date(birthDate) : null;
+      if (gender !== undefined) data.gender = gender;
+      if (educationLevel !== undefined) data.educationLevel = educationLevel || null;
+      if (schoolName !== undefined) data.schoolName = schoolName || null;
+      if (grade !== undefined) data.grade = grade || null;
+      if (parentName !== undefined) data.parentName = parentName || null;
+      if (status !== undefined) data.status = status;
+      if (address !== undefined) data.address = address || null;
+      if (joinDate !== undefined) data.joinDate = joinDate ? new Date(joinDate) : null;
+      if (isActive !== undefined) data.isActive = isActive;
+      if (bio !== undefined) data.bio = bio || null;
+      if (imageUrl !== undefined) data.imageUrl = imageUrl || null;
+
+      const child = await storage.updateFosterChild(id, data);
+      if (!child) return res.status(404).json({ message: "Anak asuh tidak ditemukan" });
+      res.json(child);
+    } catch (err) {
+      console.error("Update foster child error:", err);
+      res.status(500).json({ message: "Gagal memperbarui data anak asuh" });
+    }
+  });
+
+  app.delete("/api/admin/foster-children/:id", requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: "ID tidak valid" });
+
+    const deleted = await storage.deleteFosterChild(id);
+    if (!deleted) return res.status(404).json({ message: "Anak asuh tidak ditemukan" });
+    res.json({ message: "Data anak asuh berhasil dihapus" });
+  });
+
+  // Galleries Routes
+  app.get("/api/galleries", async (_req, res) => {
+    const items = await storage.getGalleries();
+    res.json(items);
+  });
+
+  app.get("/api/galleries/:id", async (req, res) => {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: "ID tidak valid" });
+
+    const gallery = await storage.getGallery(id);
+    if (!gallery) return res.status(404).json({ message: "Galeri tidak ditemukan" });
+    res.json(gallery);
+  });
+
+  app.post("/api/admin/uploads/gallery", requireAdmin, (req, res) => {
+    galleriesUpload.single("file")(req, res, (err: any) => {
+      if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({ message: "Ukuran file maksimal 5MB" });
+      }
+      if (err) return res.status(400).json({ message: err.message || "Upload gagal" });
+      if (!req.file) return res.status(400).json({ message: "File wajib diunggah" });
+
+      const imagePath = toPublicUploadPath(req.file.filename, "galleries");
+      return res.status(201).json({ imageUrl: imagePath });
+    });
+  });
+
+  app.post("/api/admin/galleries", requireAdmin, async (req, res) => {
+    try {
+      const payload = insertGallerySchema.parse(req.body);
+      const gallery = await storage.createGallery(payload);
+      res.status(201).json(gallery);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join(".") });
+      }
+      console.error("Create gallery error:", err);
+      res.status(500).json({ message: "Gagal menambahkan galeri" });
+    }
+  });
+
+  app.put("/api/admin/galleries/:id", requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: "ID tidak valid" });
+
+    try {
+      const { title, description, imageUrl, category } = req.body;
+      const data: Record<string, any> = {};
+      if (title !== undefined) data.title = title;
+      if (description !== undefined) data.description = description || null;
+      if (imageUrl !== undefined) data.imageUrl = imageUrl;
+      if (category !== undefined) data.category = category;
+
+      const updated = await storage.updateGallery(id, data);
+      if (!updated) return res.status(404).json({ message: "Galeri tidak ditemukan" });
+      res.json(updated);
+    } catch (err) {
+      console.error("Update gallery error:", err);
+      res.status(500).json({ message: "Gagal memperbarui galeri" });
+    }
+  });
+
+  app.delete("/api/admin/galleries/:id", requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: "ID tidak valid" });
+
+    const deleted = await storage.deleteGallery(id);
+    if (!deleted) return res.status(404).json({ message: "Galeri tidak ditemukan" });
+    res.json({ message: "Galeri berhasil dihapus" });
+  });
+
+  // Expenses Routes
+  app.get("/api/admin/expenses", requireAdmin, async (_req, res) => {
+    const items = await storage.getExpenses();
+    res.json(items);
+  });
+
+  app.post("/api/admin/expenses", requireAdmin, async (req, res) => {
+    try {
+      const payload = insertExpenseSchema.parse(req.body);
+      const expense = await storage.createExpense(payload);
+      res.status(201).json(expense);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join(".") });
+      }
+      console.error("Create expense error:", err);
+      res.status(500).json({ message: "Gagal menambahkan pengeluaran" });
+    }
+  });
+
+  app.put("/api/admin/expenses/:id", requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: "ID tidak valid" });
+
+    try {
+      const { title, description, amount, date, category } = req.body;
+      const data: Record<string, any> = {};
+      if (title !== undefined) data.title = title;
+      if (description !== undefined) data.description = description || null;
+      if (amount !== undefined) data.amount = amount;
+      if (category !== undefined) data.category = category;
+      if (date !== undefined) data.date = date ? new Date(date) : null;
+
+      const updated = await storage.updateExpense(id, data);
+      if (!updated) return res.status(404).json({ message: "Pengeluaran tidak ditemukan" });
+      res.json(updated);
+    } catch (err) {
+      console.error("Update expense error:", err);
+      res.status(500).json({ message: "Gagal memperbarui pengeluaran" });
+    }
+  });
+
+  app.delete("/api/admin/expenses/:id", requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: "ID tidak valid" });
+
+    const deleted = await storage.deleteExpense(id);
+    if (!deleted) return res.status(404).json({ message: "Pengeluaran tidak ditemukan" });
+    res.json({ message: "Pengeluaran berhasil dihapus" });
+  });
+
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 20,
@@ -354,78 +597,6 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Registration error:", err);
       return res.status(500).json({ message: "Terjadi kesalahan saat registrasi" });
-    }
-  });
-
-  app.post("/api/auth/forgot-password", async (req, res) => {
-    try {
-      const { email } = req.body;
-      if (!email) {
-        return res.status(400).json({ message: "Email wajib diisi" });
-      }
-
-      const user = await storage.getUserByEmail(email);
-      if (!user) {
-        // For security, don't reveal if user exists
-        return res.json({ message: "Jika email terdaftar, instruksi reset password akan dikirimkan" });
-      }
-
-      const token = crypto.randomBytes(32).toString("hex");
-      const expires = new Date(Date.now() + 3600000); // 1 hour
-
-      await storage.updateUserResetToken(user.id, token, expires);
-
-      const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-      const host = req.get("host");
-      const resetLink = `${protocol}://${host}/reset-password?token=${token}`;
-
-      console.log(`Reset link for ${email}: ${resetLink}`);
-      
-      try {
-        await sendResetPasswordEmail(email, resetLink);
-      } catch (mailErr) {
-        console.error("Mail error:", mailErr);
-        // Fallback: in dev, we still show the link in logs
-        if (process.env.NODE_ENV === "production") {
-          return res.status(500).json({ message: "Gagal mengirim email" });
-        }
-      }
-
-      res.json({ message: "Jika email terdaftar, instruksi reset password akan dikirimkan" });
-    } catch (err) {
-      console.error("Forgot password error:", err);
-      res.status(500).json({ message: "Terjadi kesalahan" });
-    }
-  });
-
-  app.post("/api/auth/reset-password", async (req, res) => {
-    try {
-      const { token, password } = req.body;
-      if (!token || !password) {
-        return res.status(400).json({ message: "Token dan password wajib diisi" });
-      }
-
-      const user = await storage.getUserByResetToken(token);
-      if (!user) {
-        return res.status(400).json({ message: "Token tidak valid atau sudah kedaluwarsa" });
-      }
-
-      if (user.resetPasswordExpires && user.resetPasswordExpires < new Date()) {
-        await storage.updateUserResetToken(user.id, null, null);
-        return res.status(400).json({ message: "Token sudah kedaluwarsa" });
-      }
-
-      await storage.updateUser(user.id, {
-        password: hashPassword(password),
-      });
-
-      // Clear token after use
-      await storage.updateUserResetToken(user.id, null, null);
-
-      res.json({ message: "Password berhasil diperbarui. Silakan login kembali." });
-    } catch (err) {
-      console.error("Reset password error:", err);
-      res.status(500).json({ message: "Terjadi kesalahan" });
     }
   });
 
@@ -522,6 +693,39 @@ export async function registerRoutes(
   app.get("/api/donations", requireAdmin, async (_req, res) => {
     const donationsList = await storage.getDonations();
     res.json(donationsList);
+  });
+
+  app.post("/api/admin/donations/manual", requireAdmin, async (req, res) => {
+    try {
+      const { programId, donorName, donorEmail, amount, message, paymentMethod } = req.body;
+      if (!programId || !donorName || !amount) {
+        return res.status(400).json({ message: "Data donasi tidak lengkap" });
+      }
+      const program = await storage.getProgram(programId);
+      if (!program) return res.status(404).json({ message: "Program not found" });
+
+      const donation = await storage.createDonation({
+        programId,
+        userId: null,
+        donorName,
+        donorEmail: donorEmail || null,
+        amount,
+        message: message || null,
+        paymentStatus: "settlement",
+        paymentMethod: paymentMethod || "tunai",
+      });
+
+      // Update program stats immediately since it's already settlement
+      await storage.updateProgram(programId, {
+        currentAmount: program.currentAmount + amount,
+        donorCount: program.donorCount + 1,
+      });
+
+      res.status(201).json(donation);
+    } catch (err) {
+      console.error("Manual donation creation error:", err);
+      return res.status(500).json({ message: "Gagal mencatat donasi manual" });
+    }
   });
 
   app.post("/api/donations/create-payment", async (req, res) => {
@@ -894,6 +1098,7 @@ export async function registerRoutes(
   app.get("/api/admin/reports", requireAdmin, async (req, res) => {
     const allPrograms = await storage.getPrograms();
     const allDonations = await storage.getDonations();
+    const allExpenses = await storage.getExpenses();
     const allUsers = await storage.getUsersByRole("orang_tua_asuh");
 
     const fromParam = req.query.from as string | undefined;
@@ -906,6 +1111,14 @@ export async function registerRoutes(
     const settledDonations = allSettled.filter(d => {
       if (!d.createdAt) return !fromDate && !toDate;
       const t = new Date(d.createdAt).getTime();
+      if (fromDate && t < fromDate.getTime()) return false;
+      if (toDate && t > toDate.getTime()) return false;
+      return true;
+    });
+
+    const settledExpenses = allExpenses.filter(e => {
+      if (!e.date) return !fromDate && !toDate;
+      const t = new Date(e.date).getTime();
       if (fromDate && t < fromDate.getTime()) return false;
       if (toDate && t > toDate.getTime()) return false;
       return true;
@@ -955,14 +1168,22 @@ export async function registerRoutes(
       };
     });
 
-    const monthlyMap = new Map<string, { amount: number; count: number }>();
+    const monthlyMap = new Map<string, { amount: number; count: number; expenseAmount: number }>();
     settledDonations.forEach(d => {
       if (!d.createdAt) return;
       const date = new Date(d.createdAt);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      const existing = monthlyMap.get(key) || { amount: 0, count: 0 };
+      const existing = monthlyMap.get(key) || { amount: 0, count: 0, expenseAmount: 0 };
       existing.amount += d.amount;
       existing.count += 1;
+      monthlyMap.set(key, existing);
+    });
+    settledExpenses.forEach(e => {
+      if (!e.date) return;
+      const date = new Date(e.date);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      const existing = monthlyMap.get(key) || { amount: 0, count: 0, expenseAmount: 0 };
+      existing.expenseAmount += e.amount;
       monthlyMap.set(key, existing);
     });
     const monthlyStats = Array.from(monthlyMap.entries())
@@ -982,12 +1203,14 @@ export async function registerRoutes(
       .slice(0, 10);
 
     const totalAmount = settledDonations.reduce((sum, d) => sum + d.amount, 0);
+    const totalExpense = settledExpenses.reduce((sum, e) => sum + e.amount, 0);
 
     res.json({
       overview: {
         totalUsers: allUsers.length,
         totalSettledDonations: settledDonations.length,
         totalAmount,
+        totalExpense,
         totalPrograms: allPrograms.length,
         pendingDonations: allDonations.filter(d => d.paymentStatus === "pending").length,
         averageDonation: settledDonations.length > 0 ? Math.round(totalAmount / settledDonations.length) : 0,
@@ -1058,6 +1281,7 @@ export async function registerRoutes(
       return res.status(201).json({ imageUrls });
     });
   });
+
 
   if (shouldSeedDatabase()) {
     seedDatabase().catch(console.error);

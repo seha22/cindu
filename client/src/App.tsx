@@ -13,6 +13,7 @@ import Sejarah from "@/pages/about/Sejarah";
 import VisiMisi from "@/pages/about/VisiMisi";
 import StrukturOrganisasi from "@/pages/about/StrukturOrganisasi";
 import ProgramKami from "@/pages/about/ProgramKami";
+import GalleryPage from "@/pages/Gallery";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
@@ -27,8 +28,9 @@ import AdminProfile from "@/pages/admin/AdminProfile";
 import Dashboard from "@/pages/dashboard/Dashboard";
 import Profile from "@/pages/dashboard/Profile";
 import DonationHistory from "@/pages/dashboard/DonationHistory";
-import ForgotPassword from "@/pages/ForgotPassword";
-import ResetPassword from "@/pages/ResetPassword";
+import AdminFosterChildren from "@/pages/admin/AdminFosterChildren";
+import AdminGallery from "@/pages/admin/AdminGallery";
+import AdminExpenses from "@/pages/admin/AdminExpenses";
 import { Loader2 } from "lucide-react";
 
 import AdminLogin from "@/pages/admin/AdminLogin";
@@ -64,6 +66,7 @@ function Router() {
       <Route path="/programs" component={Programs} />
       <Route path="/programs/:id" component={ProgramDetail} />
       <Route path="/articles" component={Articles} />
+      <Route path="/galeri" component={GalleryPage} />
       <Route path="/about/sejarah" component={Sejarah} />
       <Route path="/about/visi-misi" component={VisiMisi} />
       <Route path="/about/struktur-organisasi" component={StrukturOrganisasi} />
@@ -72,8 +75,6 @@ function Router() {
       <Route path="/login">{() => <GuestRoute component={Login} />}</Route>
       <Route path="/admin/login">{() => <GuestRoute component={AdminLogin} />}</Route>
       <Route path="/register">{() => <GuestRoute component={Register} />}</Route>
-      <Route path="/forgot-password" component={ForgotPassword} />
-      <Route path="/reset-password" component={ResetPassword} />
 
       <Route path="/admin">{() => <AdminRoute component={AdminDashboard} />}</Route>
       <Route path="/admin/programs">{() => <AdminRoute component={AdminPrograms} />}</Route>
@@ -82,6 +83,9 @@ function Router() {
       <Route path="/admin/users">{() => <AdminRoute component={AdminUsers} />}</Route>
       <Route path="/admin/reports">{() => <AdminRoute component={AdminReports} />}</Route>
       <Route path="/admin/cms">{() => <AdminRoute component={AdminCms} />}</Route>
+      <Route path="/admin/foster-children">{() => <AdminRoute component={AdminFosterChildren} />}</Route>
+      <Route path="/admin/galleries">{() => <AdminRoute component={AdminGallery} />}</Route>
+      <Route path="/admin/expenses">{() => <AdminRoute component={AdminExpenses} />}</Route>
       <Route path="/admin/settings">{() => <AdminRoute component={AdminSettings} />}</Route>
       <Route path="/admin/profile">{() => <AdminRoute component={AdminProfile} />}</Route>
 

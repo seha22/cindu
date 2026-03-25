@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, boolean, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -11,8 +11,6 @@ export const users = pgTable("users", {
   fullName: text("full_name").notNull(),
   phone: text("phone"),
   address: text("address"),
-  resetPasswordToken: text("reset_password_token"),
-  resetPasswordExpires: timestamp("reset_password_expires"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -44,6 +42,7 @@ export const donations = pgTable("donations", {
   amount: integer("amount").notNull(),
   message: text("message"),
   paymentStatus: text("payment_status").notNull().default("pending"),
+  paymentMethod: text("payment_method").notNull().default("midtrans"), // midtrans, transfer, tunai
   midtransOrderId: text("midtrans_order_id"),
   midtransTransactionId: text("midtrans_transaction_id"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -100,3 +99,67 @@ export const insertHeroSlideSchema = createInsertSchema(heroSlides).omit({
 });
 export type InsertHeroSlide = z.infer<typeof insertHeroSlideSchema>;
 export type HeroSlide = typeof heroSlides.$inferSelect;
+
+export const fosterChildren = pgTable("foster_children", {
+  id: serial("id").primaryKey(),
+  fullName: text("full_name").notNull(),
+  birthPlace: text("birth_place"),
+  birthDate: timestamp("birth_date"),
+  gender: text("gender").notNull(), // 'Laki-laki' | 'Perempuan'
+  educationLevel: text("education_level"), // 'SD', 'SMP', etc.
+  schoolName: text("school_name"),
+  grade: text("grade"),
+  parentName: text("parent_name"),
+  status: text("status").notNull(), // 'Yatim', 'Piatu', 'Yatim Piatu', 'Dhuafa'
+  address: text("address"),
+  joinDate: timestamp("join_date").defaultNow(),
+  isActive: boolean("is_active").notNull().default(true),
+  bio: text("bio"),
+  imageUrl: text("image_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertFosterChildSchema = createInsertSchema(fosterChildren).omit({ 
+  id: true, 
+  createdAt: true 
+}).extend({
+  birthDate: z.coerce.date().optional().nullable(),
+  joinDate: z.coerce.date().optional().nullable(),
+});
+export type InsertFosterChild = z.infer<typeof insertFosterChildSchema>;
+export type FosterChild = typeof fosterChildren.$inferSelect;
+
+export const galleries = pgTable("galleries", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  imageUrl: text("image_url").notNull(),
+  category: text("category").notNull().default("umum"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertGallerySchema = createInsertSchema(galleries).omit({ id: true, createdAt: true });
+export type InsertGallery = z.infer<typeof insertGallerySchema>;
+export type Gallery = typeof galleries.$inferSelect;
+
+export const expenses = pgTable("expenses", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  amount: integer("amount").notNull(),
+  date: timestamp("date").notNull().defaultNow(),
+  category: text("category").notNull().default("operasional"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertExpenseSchema = createInsertSchema(expenses).omit({ id: true, createdAt: true }).extend({
+  date: z.coerce.date().optional(),
+});
+export type InsertExpense = z.infer<typeof insertExpenseSchema>;
+export type Expense = typeof expenses.$inferSelect;
+
+export const sessions = pgTable("session", {
+  sid: text("sid").primaryKey(),
+  sess: json("sess").notNull(),
+  expire: timestamp("expire").notNull(),
+});

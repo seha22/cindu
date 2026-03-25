@@ -8,6 +8,7 @@ import { useProgram } from "@/hooks/use-programs";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import DOMPurify from "dompurify";
 import { useQuery } from "@tanstack/react-query";
 import type { Donation, Program } from "@shared/schema";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
@@ -126,6 +127,7 @@ export default function ProgramDetail() {
   const { user } = useAuth();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [presetAmount, setPresetAmount] = useState<number | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const handleQuickDonate = (amount: number) => {
     setPresetAmount(amount);
@@ -297,11 +299,34 @@ export default function ProgramDetail() {
                 </div>
 
                 <h2 className="font-bold text-2xl text-foreground mb-6">Tentang Program Ini</h2>
-                <div className="prose prose-lg max-w-none text-foreground/80 leading-relaxed space-y-4" data-testid="text-program-content">
-                  {(program.content || program.description).split("\n\n").map((paragraph, i) => (
-                    <p key={i}>{paragraph}</p>
-                  ))}
+                <div className={`relative w-full ${!isExpanded ? 'max-h-[300px] overflow-hidden' : 'overflow-x-hidden'}`}>
+                  {(program.content && (program.content.includes('<p>') || program.content.includes('<h') || program.content.includes('<ul>'))) ? (
+                    <div 
+                      className="prose prose-lg max-w-full break-words prose-p:leading-relaxed prose-headings:font-display prose-a:text-primary prose-a:break-all prose-img:rounded-2xl prose-img:max-w-full"
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(program.content) }}
+                    />
+                  ) : (
+                    <div className="prose prose-lg max-w-full break-words text-foreground/80 leading-relaxed space-y-4" data-testid="text-program-content">
+                      {(program.content || program.description).split("\n\n").map((paragraph, i) => (
+                        <p key={i}>{paragraph}</p>
+                      ))}
+                    </div>
+                  )}
+
+                  {!isExpanded && (
+                    <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+                  )}
                 </div>
+
+                {((program.content || program.description).length > 500) && (
+                  <Button 
+                    variant="ghost" 
+                    className="w-full mt-2 font-semibold text-primary hover:text-primary hover:bg-primary/5 rounded-xl border border-primary/20"
+                    onClick={() => setIsExpanded(!isExpanded)}
+                  >
+                    {isExpanded ? "Tutup Sebagian" : "Baca Selengkapnya"}
+                  </Button>
+                )}
               </div>
 
               {/* Donor List Card */}

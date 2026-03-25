@@ -4,8 +4,14 @@ import AdminLayout from "@/components/layout/AdminLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, ChevronLeft, ChevronRight, Filter } from "lucide-react";
-import type { Donation } from "@shared/schema";
+import { Loader2, Search, ChevronLeft, ChevronRight, Filter, Plus, Banknote } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useMutation } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import type { Donation, Program } from "@shared/schema";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -15,6 +21,12 @@ export default function AdminDonations() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [form, setForm] = useState({
+    donorName: "", donorEmail: "", amount: "", message: "", paymentMethod: "transfer", programId: ""
+  });
+  const { toast } = useToast();
 
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(v);
@@ -75,12 +87,43 @@ export default function AdminDonations() {
     setCurrentPage(1);
   };
 
+  const { data: programs } = useQuery<Program[]>({ queryKey: ["/api/programs"] });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/admin/donations/manual", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/donations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/programs"] });
+      toast({ title: "Donasi manual berhasil dicatat", description: "Dana otomatis berstatus berhasil." });
+      setIsDialogOpen(false);
+      setForm({ donorName: "", donorEmail: "", amount: "", message: "", paymentMethod: "transfer", programId: "" });
+    },
+    onError: (err: Error) => toast({ title: "Gagal mencatat donasi", description: err.message, variant: "destructive" }),
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    createMutation.mutate({
+      ...form,
+      amount: parseInt(form.amount) || 0,
+      programId: parseInt(form.programId),
+    });
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-2xl font-bold">Donasi</h1>
-          <p className="text-muted-foreground text-sm mt-1">Daftar semua donasi masuk</p>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="font-display text-2xl font-bold">Donasi</h1>
+            <p className="text-muted-foreground text-sm mt-1">Daftar semua donasi masuk</p>
+          </div>
+          <Button onClick={() => setIsDialogOpen(true)} className="rounded-xl gap-2 shadow-sm">
+            <Plus className="w-4 h-4" /> Catat Donasi Manual
+          </Button>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
@@ -131,7 +174,14 @@ export default function AdminDonations() {
                   <tbody>
                     {paginatedDonations.map((d) => (
                       <tr key={d.id} className="border-b border-border/30 hover:bg-secondary/30" data-testid={`row-donation-${d.id}`}>
-                        <td className="p-4 font-medium">{d.donorName}</td>
+                        <td className="p-4">
+                          <div className="font-medium">{d.donorName}</div>
+                          {d.paymentMethod && d.paymentMethod !== "midtrans" && (
+                            <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-0.5">
+                              {d.paymentMethod}
+                            </div>
+                          )}
+                        </td>
                         <td className="p-4 font-semibold text-primary">{formatCurrency(d.amount)}</td>
                         <td className="p-4">{statusBadge(d.paymentStatus)}</td>
                         <td className="p-4 text-muted-foreground max-w-[200px] truncate" title={d.message || ""}>{d.message || "-"}</td>
@@ -206,6 +256,92 @@ export default function AdminDonations() {
           </Card>
         )}
       </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[500px] rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-primary">
+              <Banknote className="w-5 h-5" /> Catat Donasi Manual
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label>Pilih Program Amal</Label>
+              <select
+                required
+                value={form.programId}
+                onChange={(e) => setForm({ ...form, programId: e.target.value })}
+                className="flex h-10 w-full items-center justify-between rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="" disabled>-- Pilih Program --</option>
+                {programs?.map(p => (
+                  <option key={p.id} value={p.id}>{p.title}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Nama Donatur</Label>
+              <Input
+                required
+                value={form.donorName}
+                onChange={(e) => setForm({ ...form, donorName: e.target.value })}
+                className="rounded-xl"
+                placeholder="Hamba Allah / Bapak Budi"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email Donatur (Opsional)</Label>
+              <Input
+                type="email"
+                value={form.donorEmail}
+                onChange={(e) => setForm({ ...form, donorEmail: e.target.value })}
+                className="rounded-xl"
+                placeholder="budi@example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Metode Pembayaran / Masuk</Label>
+              <select
+                required
+                value={form.paymentMethod}
+                onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}
+                className="flex h-10 w-full items-center justify-between rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="transfer">Transfer Bank (BCA/Mandiri dll)</option>
+                <option value="tunai">Tunai / Kotak Amal Cash</option>
+                <option value="lainnya">Lainnya...</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Nominal (Rp)</Label>
+              <Input
+                required
+                type="number"
+                min="1000"
+                value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                className="rounded-xl font-medium"
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Pesan / Doa (Opsional)</Label>
+              <Textarea
+                value={form.message}
+                onChange={(e) => setForm({ ...form, message: e.target.value })}
+                className="rounded-xl resize-none h-20"
+                placeholder="Tulis pesan penyemangat..."
+              />
+            </div>
+            <div className="pt-2">
+              <Button type="submit" disabled={createMutation.isPending} className="w-full rounded-xl gap-2 h-11 pointer-events-auto">
+                {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                Catat Donasi Ini
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }

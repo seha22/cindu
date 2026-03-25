@@ -6,6 +6,7 @@ import {
   users,
   cmsPages,
   heroSlides,
+  fosterChildren,
   type InsertProgram,
   type Program,
   type InsertDonation,
@@ -18,6 +19,14 @@ import {
   type CmsPage,
   type InsertHeroSlide,
   type HeroSlide,
+  type InsertFosterChild,
+  type FosterChild,
+  galleries,
+  type InsertGallery,
+  type Gallery,
+  expenses,
+  type InsertExpense,
+  type Expense,
 } from "@shared/schema";
 import { eq, sql, desc, asc } from "drizzle-orm";
 
@@ -47,8 +56,6 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined>;
-  updateUserResetToken(id: number, token: string | null, expires: Date | null): Promise<void>;
-  getUserByResetToken(token: string): Promise<User | undefined>;
 
   getCmsPage(slug: string): Promise<CmsPage | undefined>;
   getCmsPages(): Promise<CmsPage[]>;
@@ -62,7 +69,25 @@ export interface IStorage {
   deleteHeroSlide(id: number): Promise<boolean>;
   reorderHeroSlides(items: Array<{ id: number; sortOrder: number }>): Promise<void>;
 
+  getFosterChildren(): Promise<FosterChild[]>;
+  getFosterChild(id: number): Promise<FosterChild | undefined>;
+  createFosterChild(child: InsertFosterChild): Promise<FosterChild>;
+  updateFosterChild(id: number, child: Partial<InsertFosterChild>): Promise<FosterChild | undefined>;
+  deleteFosterChild(id: number): Promise<boolean>;
+
   getUsersByRole(role: string): Promise<User[]>;
+
+  getGalleries(): Promise<Gallery[]>;
+  getGallery(id: number): Promise<Gallery | undefined>;
+  createGallery(gallery: InsertGallery): Promise<Gallery>;
+  updateGallery(id: number, gallery: Partial<InsertGallery>): Promise<Gallery | undefined>;
+  deleteGallery(id: number): Promise<boolean>;
+
+  getExpenses(): Promise<Expense[]>;
+  getExpense(id: number): Promise<Expense | undefined>;
+  createExpense(expense: InsertExpense): Promise<Expense>;
+  updateExpense(id: number, expense: Partial<InsertExpense>): Promise<Expense | undefined>;
+  deleteExpense(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -198,17 +223,6 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async updateUserResetToken(id: number, token: string | null, expires: Date | null): Promise<void> {
-    await db.update(users)
-      .set({ resetPasswordToken: token, resetPasswordExpires: expires })
-      .where(eq(users.id, id));
-  }
-
-  async getUserByResetToken(token: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.resetPasswordToken, token));
-    return user;
-  }
-
   async getCmsPage(slug: string): Promise<CmsPage | undefined> {
     const [page] = await db.select().from(cmsPages).where(eq(cmsPages.slug, slug));
     return page;
@@ -291,6 +305,82 @@ export class DatabaseStorage implements IStorage {
         .set({ sortOrder: item.sortOrder, updatedAt: new Date() })
         .where(eq(heroSlides.id, item.id));
     }
+  }
+
+  async getFosterChildren(): Promise<FosterChild[]> {
+    return await db.select().from(fosterChildren).orderBy(desc(fosterChildren.createdAt));
+  }
+
+  async getFosterChild(id: number): Promise<FosterChild | undefined> {
+    const [child] = await db.select().from(fosterChildren).where(eq(fosterChildren.id, id));
+    return child;
+  }
+
+  async createFosterChild(child: InsertFosterChild): Promise<FosterChild> {
+    const [newChild] = await db.insert(fosterChildren).values(child).returning();
+    return newChild;
+  }
+
+  async updateFosterChild(id: number, data: Partial<InsertFosterChild>): Promise<FosterChild | undefined> {
+    const [updated] = await db.update(fosterChildren).set(data).where(eq(fosterChildren.id, id)).returning();
+    return updated;
+  }
+
+  async deleteFosterChild(id: number): Promise<boolean> {
+    const result = await db.delete(fosterChildren).where(eq(fosterChildren.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getGalleries(): Promise<Gallery[]> {
+    return await db.select().from(galleries).orderBy(desc(galleries.createdAt));
+  }
+
+  async getGallery(id: number): Promise<Gallery | undefined> {
+    const [gallery] = await db.select().from(galleries).where(eq(galleries.id, id));
+    return gallery;
+  }
+
+  async createGallery(gallery: InsertGallery): Promise<Gallery> {
+    const [newGallery] = await db.insert(galleries).values(gallery).returning();
+    return newGallery;
+  }
+
+  async updateGallery(id: number, data: Partial<InsertGallery>): Promise<Gallery | undefined> {
+    const [updated] = await db.update(galleries).set(data).where(eq(galleries.id, id)).returning();
+    return updated;
+  }
+
+  async deleteGallery(id: number): Promise<boolean> {
+    const result = await db.delete(galleries).where(eq(galleries.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getExpenses(): Promise<Expense[]> {
+    return await db.select().from(expenses).orderBy(desc(expenses.date));
+  }
+
+  async getExpense(id: number): Promise<Expense | undefined> {
+    const [expense] = await db.select().from(expenses).where(eq(expenses.id, id));
+    return expense;
+  }
+
+  async createExpense(expense: InsertExpense): Promise<Expense> {
+    const dataToInsert = { ...expense };
+    if (!dataToInsert.date) {
+      dataToInsert.date = new Date();
+    }
+    const [newExpense] = await db.insert(expenses).values(dataToInsert).returning();
+    return newExpense;
+  }
+
+  async updateExpense(id: number, data: Partial<InsertExpense>): Promise<Expense | undefined> {
+    const [updated] = await db.update(expenses).set(data).where(eq(expenses.id, id)).returning();
+    return updated;
+  }
+
+  async deleteExpense(id: number): Promise<boolean> {
+    const result = await db.delete(expenses).where(eq(expenses.id, id)).returning();
+    return result.length > 0;
   }
 }
 

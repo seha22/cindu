@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { LayoutDashboard, FileText, FolderHeart, Newspaper, LogOut, Heart, Menu, X, Users, BarChart3, User, Settings } from "lucide-react";
+import { LayoutDashboard, FileText, FolderHeart, Newspaper, LogOut, Heart, Menu, X, Users, BarChart3, User, Settings, GraduationCap, Image as ImageIcon, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import type { ReactNode } from "react";
@@ -10,8 +10,11 @@ const sidebarLinks = [
   { href: "/admin/programs", label: "Program Amal", icon: FolderHeart },
   { href: "/admin/articles", label: "Artikel", icon: Newspaper },
   { href: "/admin/donations", label: "Donasi", icon: Heart },
+  { href: "/admin/expenses", label: "Pengeluaran", icon: Wallet },
+  { href: "/admin/galleries", label: "Galeri", icon: ImageIcon },
+  { href: "/admin/foster-children", label: "Anak Asuh", icon: GraduationCap },
   { href: "/admin/users", label: "Orang Tua Asuh", icon: Users },
-  { href: "/admin/reports", label: "Laporan", icon: BarChart3 },
+  { href: "/admin/reports", label: "Laporan Terpadu", icon: BarChart3 },
   { href: "/admin/cms", label: "Halaman CMS", icon: FileText },
   { href: "/admin/settings", label: "Pengaturan", icon: Settings },
   { href: "/admin/profile", label: "Profil Admin", icon: User },

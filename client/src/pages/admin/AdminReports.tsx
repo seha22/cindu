@@ -23,6 +23,7 @@ interface ReportData {
     totalUsers: number;
     totalSettledDonations: number;
     totalAmount: number;
+    totalExpense: number;
     totalPrograms: number;
     pendingDonations: number;
     averageDonation: number;
@@ -47,6 +48,7 @@ interface ReportData {
     month: string;
     amount: number;
     count: number;
+    expenseAmount: number;
   }[];
   topDonors: {
     name: string;
@@ -192,7 +194,8 @@ export default function AdminReports() {
   }, [report]);
 
   const areaChartConfig = {
-    amount: { label: "Total Donasi", color: "hsl(var(--primary))" },
+    amount: { label: "Pemasukan (Donasi)", color: "hsl(var(--primary))" },
+    expenseAmount: { label: "Pengeluaran", color: "hsl(var(--destructive))" },
   };
   const barChartConfig = {
     target: { label: "Target", color: "hsl(210 80% 65%)" },
@@ -314,6 +317,23 @@ export default function AdminReports() {
           <Card className="border-0 shadow-md rounded-2xl">
             <CardContent className="p-5">
               <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
+                  <TrendingDown className="w-5 h-5 text-destructive" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground">Total Pengeluaran</p>
+                  <p className="font-bold text-lg text-destructive truncate">{formatCurrency(report.overview.totalExpense || 0)}</p>
+                </div>
+              </div>
+              <div className="mt-2 text-xs text-muted-foreground">
+                Sisa Saldo: <span className="font-semibold text-foreground">{formatCurrency((report.overview.totalAmount || 0) - (report.overview.totalExpense || 0))}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-md rounded-2xl">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
                   <Heart className="w-5 h-5 text-green-600" />
                 </div>
@@ -384,6 +404,10 @@ export default function AdminReports() {
                         <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
                         <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.02} />
                       </linearGradient>
+                      <linearGradient id="areaGradientExpense" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="hsl(var(--destructive))" stopOpacity={0.3} />
+                        <stop offset="100%" stopColor="hsl(var(--destructive))" stopOpacity={0.02} />
+                      </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
                     <XAxis dataKey="month" tickFormatter={formatMonth} tick={{ fontSize: 11 }} />
@@ -398,10 +422,21 @@ export default function AdminReports() {
                     <Area
                       type="monotone"
                       dataKey="amount"
+                      name="Pemasukan"
                       stroke="hsl(var(--primary))"
                       strokeWidth={2.5}
                       fill="url(#areaGradient)"
                       dot={{ r: 3, fill: "hsl(var(--primary))" }}
+                      activeDot={{ r: 5 }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="expenseAmount"
+                      name="Pengeluaran"
+                      stroke="hsl(var(--destructive))"
+                      strokeWidth={2.5}
+                      fill="url(#areaGradientExpense)"
+                      dot={{ r: 3, fill: "hsl(var(--destructive))" }}
                       activeDot={{ r: 5 }}
                     />
                   </AreaChart>
@@ -538,8 +573,9 @@ export default function AdminReports() {
                     <thead className="sticky top-0 bg-card">
                       <tr className="border-b border-border/50">
                         <th className="text-left py-2 font-semibold text-muted-foreground">Bulan</th>
-                        <th className="text-right py-2 font-semibold text-muted-foreground">Jumlah</th>
-                        <th className="text-right py-2 font-semibold text-muted-foreground">Total</th>
+                        <th className="text-right py-2 font-semibold text-muted-foreground">Jumlah Donasi</th>
+                        <th className="text-right py-2 font-semibold text-muted-foreground">Pemasukan</th>
+                        <th className="text-right py-2 font-semibold text-muted-foreground">Pengeluaran</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -548,6 +584,7 @@ export default function AdminReports() {
                           <td className="py-2 font-medium">{formatMonth(m.month)}</td>
                           <td className="py-2 text-right text-muted-foreground">{m.count} donasi</td>
                           <td className="py-2 text-right font-semibold text-primary">{formatCurrency(m.amount)}</td>
+                          <td className="py-2 text-right font-semibold text-destructive">{formatCurrency(m.expenseAmount)}</td>
                         </tr>
                       ))}
                     </tbody>
