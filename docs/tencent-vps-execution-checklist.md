@@ -55,6 +55,7 @@ Deploy repo:
 
 ```bash
 git clone <REPO_URL> /var/www/cinta-dhuafa-web/current
+//git clone https://github.com/seha22/cindu.git /var/www/cinta-dhuafa-web/current
 cd /var/www/cinta-dhuafa-web/current
 ```
 
