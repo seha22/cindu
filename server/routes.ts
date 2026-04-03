@@ -794,7 +794,10 @@ export async function registerRoutes(
       }
 
       const donation = await storage.getDonationByOrderId(order_id);
-      if (!donation) return res.status(404).json({ message: "Donation not found" });
+      if (!donation) {
+        // Return 200 OK even if not found so Midtrans test button works, and Midtrans stops retrying.
+        return res.status(200).json({ message: "Donation not found or dummy test acknowledged" });
+      }
 
       let newStatus = "pending";
       if (transaction_status === "capture" || transaction_status === "settlement") {

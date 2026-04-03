@@ -10,11 +10,16 @@ Akses VPS Anda melalui SSH. Pastikan sistem sudah diperbarui dan aplikasi wajib 
 # Update sistem
 sudo apt update && sudo apt upgrade -y
 
-# Install Docker & Nginx
-sudo apt install docker.io docker-compose nginx certbot python3-certbot-nginx -y
+# Install Docker versi modern (docker-compose-plugin) & Nginx
+sudo apt install docker.io docker-compose-plugin nginx certbot python3-certbot-nginx -y
+
+# Buka akses Firewall Ubuntu untuk Nginx
+sudo ufw allow 'Nginx Full'
 ```
 
-> **Catatan (Opsional tapi Penting):** Jika VPS Anda menggunakan RAM 1GB, sangat disarankan membuat _Swap Memory_ (misal 2GB) untuk mencegah *Out of Memory* saat proses _build_ Node.js.
+> **PENTING (Tencent/AWS Cloud):** Pastikan pada halaman *Security Group / Firewall* di panel kontrol VPS Anda, *Port 80 (HTTP)* dan *Port 443 (HTTPS)* sudah dalam keadaan terbuka (Allowed).
+>
+> **Catatan (Opsional tapi Penting):** Jika VPS Anda menggunakan RAM 1GB, sangat disarankan membuat _Swap Memory_ (misal 2GB) untuk mencegah *Out of Memory* saat proses _build_.
 > ```bash
 > sudo fallocate -l 2G /swapfile
 > sudo chmod 600 /swapfile
@@ -25,12 +30,12 @@ sudo apt install docker.io docker-compose nginx certbot python3-certbot-nginx -y
 
 ## 2. Setup Project & Environment
 
-*Clone* / pindahkan _source code_ Anda ke VPS (biasanya diletakkan di `/var/www/cindu` atau `~/cinta-dhuafa`).
+*Clone* / pindahkan _source code_ Anda ke VPS (biasanya diletakkan di `/var/www/cintu` atau `~/cindu`).
 
 Masuk ke folder projek dan salin/buat file environment:
 
 ```bash
-cd /jalur/ke/folder/cinta-dhuafa
+cd ~/cindu
 cp .env.example .env
 ```
 
@@ -43,49 +48,40 @@ Pastikan variabel `DATABASE_URL` mengarah ke *Session Pooler* atau koneksi langs
 DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres
 PORT=5000
 ```
-*(Sesuaikan dengan detail database dari dashboard Supabase Anda serta environment seperti API key Midtrans).*
 
 ## 3. Proses Build & Eksekusi Kontainer
 
-Jalankan perintah berikut untuk mem-_build_ image Node.js dan menjalankan kontainer aplikasi web di _background_:
+Gunakan perintah `docker compose` (dengan spasi, bukan strip/dash agar terhindar dari *bug ContainerConfig* versi usang).
 
 ```bash
 # Build dan jalankan
-sudo docker-compose up -d --build
+sudo docker compose up -d --build
 
-# Cek status aplikasi
-sudo docker-compose logs -f web
+# Cek status aplikasi, pastikan tulisan tidak ada pesan error / restart
+sudo docker logs -f cindu-web
 ```
 *(Tekan `Ctrl+C` untuk keluar dari logs)*
 
-## 4. Inisialisasi Database Supabase (Opsional jika belum disetup)
+## 4. Inisialisasi Database Supabase (Opsional)
 
-Jika database Supabase Anda belum disetup strukturnya, Anda bisa menjalankan _push_ skema dari dalam container aplikasi:
+Jika database Anda masih baru/kosong, aplikasikan skema tabel dari dalam kontainer:
 
 ```bash
-# Masuk ke dalam kontainer
-sudo docker exec -it cindu-web sh
-
-# Push schema ke Supabase
-npm run db:push
+# Push schema tabel otomatis ke database
+sudo docker exec -it cindu-web npm run db:push
 
 # Tambah akun admin default
-npm run admin:create
-
-# Keluar dari kontainer
-exit
+sudo docker exec -it cindu-web npm run admin:create
 ```
 
 ## 5. Setup Nginx Reverse Proxy untuk Domain
-
-Sekarang kita akan menghubungkan domain **cintadhuafa.or.id** (yang sudah dipointing ke IP VPS) agar saat dikunjungi akan mengarah ke port 5000 Docker.
 
 Buat file konfigurasi Nginx baru:
 ```bash
 sudo nano /etc/nginx/sites-available/cintadhuafa
 ```
 
-Isi dengan konfigurasi berikut:
+Isi dengan konfigurasi berikut **(Pastikan copy-paste dari huruf awal `server {`)**:
 ```nginx
 server {
     listen 80;
@@ -107,31 +103,56 @@ server {
 }
 ```
 
-Aktifkan konfigurasi Nginx tersebut:
+Aktifkan konfigurasi pengaturan tersebut dan *restart* Nginx:
 ```bash
-sudo ln -s /etc/nginx/sites-available/cintadhuafa /etc/nginx/sites-enabled/
-```
-
-Uji coba konfigurasi dan *Restart* Nginx:
-```bash
-# Pastikan tidak ada pesan error / syntax OK
+sudo ln -sf /etc/nginx/sites-available/cintadhuafa /etc/nginx/sites-enabled/
 sudo nginx -t
-
-# Restart Nginx
 sudo systemctl restart nginx
 ```
 
 ## 6. Install SSL (HTTPS) dengan Certbot
 
-Langkah terakhir, aktifkan koneksi aman HTTPS secara otomatis dengan Certbot:
+Langkah terakhir adalah mengaktifkan sertifikat HTTPS.
+**PERHATIAN KHUSUS JIKA MENGGUNAKAN CLOUDFLARE DNS:**
+1. Pastikan Anda sudah membuat **A Record** untuk `cintadhuafa.or.id` dan **CNAME Record** untuk `www` di Cloudflare.
+2. **Matikan sementara fitur Proxy** (Awan berwarna abu-abu / *DNS Only*) saat eksekusi Certbot di bawah.
 
+Jalankan instalasi SSL:
 ```bash
 sudo certbot --nginx -d cintadhuafa.or.id -d www.cintadhuafa.or.id
 ```
 
-Pada proses ini, Certbot akan menanyakan email pengguna dan persetujuan. Certbot kemudian akan otomatis memodifikasi file konfigurasi Nginx Anda untuk menerapkan HTTPS _(redirect dari HTTP to HTTPS)_.
+Setelah tampil tulisan *Congratulations!*, segera kembali ke panel Cloudflare:
+- Ubah kembali *Proxy status* awan menjadi **Oranye (Proxied)**.
+- Buka menu **SSL/TLS -> Overview**, dan ubah pengaturan ke mode **Full (strict)** agar lalu lintas terenkripsi sempurna.
 
 ---
 
+## 7. Prosedur Update Code (Deployment Pembaruan)
+Jika suatu saat terdapat pembaharuan (*update*) pada *source code* (contohnya perbaikan bug di GitHub), ikuti proses pembaruan berikut pada VPS Anda:
+
+1. **Masuk ke direktori web**
+   ```bash
+   cd ~/cindu
+   ```
+
+2. **Ambil pembaruan terbaru dari GitHub**
+   ```bash
+   git pull origin main
+   ```
+
+3. **Re-build kontainer Docker**
+   Proses ini berlangsung secara otomatis membuat ulang (*recreate*) kontainer tanpa *downtime* yang sangat lama. Tanpa perlu `--build` karena docker akan mendeteksinya. Atau amannya:
+   ```bash
+   sudo docker compose up -d --build
+   ```
+
+4. **Kirim pembaruan skema database (Opsional)**
+   Hanya lakukan ini jika ada instruksi dari tim *developer* bahwa versi terbaru memiliki perubahan pada stuktur database (*schema update*):
+   ```bash
+   sudo docker exec -it cindu-web npm run db:push
+   ```
+
+---
 🎉 **Selesai!** 
-Aplikasi Anda sudah berhasil dihosting di VPS Docker yang terhubung langsung ke layanan database Supabase Eksternal, dan kini aman dikunjungi di `https://cintadhuafa.or.id`.
+Aplikasi Anda dan sistem *Update* rutinnya kini terintegrasi secara praktis dalam sistem *containerized* (Docker) di server produksi / VPS Anda.

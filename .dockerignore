@@ -12,9 +12,4 @@ deploy/
 uploads/
 *.log
 ecosystem.config.cjs
-drizzle.config.ts
-tailwind.config.ts
-postcss.config.js
-vite.config.ts
-components.json
 replit.md
