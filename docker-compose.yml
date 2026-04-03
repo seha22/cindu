@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: cindu-web
+    ports:
+      - "${PORT:-5000}:${PORT:-5000}"
+    env_file:
+      - .env
+    environment:
+      # Optional explicit env vars jika file .env tidak digunakan
+      - NODE_ENV=production
+    restart: unless-stopped
+    volumes:
+      # Untuk menyimpan file uploads secara permanen di host
+      - ./uploads:/app/uploads
